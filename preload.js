@@ -1,10 +1,13 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer } = require("electron");
 
-contextBridge.exposeInMainWorld('electronAPI', {
+contextBridge.exposeInMainWorld("electronAPI", {
   setIgnoreMouse: (ignore) => {
-    ipcRenderer.send('set-ignore-mouse-events', ignore, { forward: true });
+    ipcRenderer.send("set-ignore-mouse-events", ignore, { forward: true });
   },
   getScreenDimensions: () => {
-    return ipcRenderer.invoke('get-screen-dimensions');
+    return ipcRenderer.invoke("get-screen-dimensions");
+  },
+  onGlobalKeydown: (callback) => {
+    ipcRenderer.on('global-keydown', (event, data) => callback(data));
   }
 });

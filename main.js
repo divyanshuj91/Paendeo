@@ -1,5 +1,6 @@
-const { app, BrowserWindow, ipcMain, screen } = require('electron');
-const path = require('node:path');
+const { app, BrowserWindow, ipcMain, screen } = require("electron");
+const path = require("node:path");
+const { uIOhook } = require("uiohook-napi");
 
 let mainWindow = null;
 
@@ -20,14 +21,14 @@ function createWindow() {
     skipTaskbar: true,
     hasShadow: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
 
   // Load the index.html file
-  mainWindow.loadFile('index.html');
+  mainWindow.loadFile("index.html");
 
   // Let the window be visible on all workspaces/virtual desktops (for macOS/Linux compat)
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -37,7 +38,7 @@ function createWindow() {
   mainWindow.setIgnoreMouseEvents(true, { forward: true });
 
   // Handle click-through toggle via IPC from renderer
-  ipcMain.on('set-ignore-mouse-events', (event, ignore, options) => {
+  ipcMain.on("set-ignore-mouse-events", (event, ignore, options) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) {
       win.setIgnoreMouseEvents(ignore, options);
@@ -45,11 +46,11 @@ function createWindow() {
   });
 
   // Allow requesting the primary screen's dimensions
-  ipcMain.handle('get-screen-dimensions', () => {
+  ipcMain.handle("get-screen-dimensions", () => {
     return { width, height };
   });
 
-  mainWindow.on('closed', () => {
+  mainWindow.on("closed", () => {
     mainWindow = null;
   });
 }
@@ -60,15 +61,26 @@ app.disableHardwareAcceleration(); // Sometimes helps with transparency renderin
 app.whenReady().then(() => {
   createWindow();
 
-  app.on('activate', () => {
+  app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
 });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+uIOhook.on('keydown', (e) => {
+  if (mainWindow) {
+    mainWindow.webContents.send('global-keydown', e);
+  }
+});
+uIOhook.start();
+
+app.on('before-quit', () => {
+  uIOhook.stop();
 });
