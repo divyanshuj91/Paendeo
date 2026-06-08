@@ -2,7 +2,7 @@
   "name": "paendeo",
   "version": "1.0.0",
   "description": "Boilerplate for an Electron transparent overlay desktop pet.",
-  "main": "main.js",
+  "main": "src/main/main.js",
   "scripts": {
     "start": "electron ."
   },
