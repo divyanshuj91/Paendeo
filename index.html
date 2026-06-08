@@ -1,72 +1,108 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Paendeo</title>
   <link rel="stylesheet" href="index.css">
 </head>
+
 <body>
   <!-- Transparent canvas for desktop pet rendering -->
   <canvas id="petCanvas"></canvas>
 
   <!-- Interactive overlay UI panel -->
   <div id="ui-panel">
-    <h3>🐼 Paendeo</h3>
-    
-    <div class="control-row">
-      <span>Physics Mode:</span>
-      <button id="toggle-gravity" class="premium-btn">Gravity Mode</button>
+    <div class="panel-header">
+      <h3>🐼 Paendeo</h3>
+      <button id="minimize-btn" class="minimize-btn" title="Minimize Dashboard">
+        <svg class="icon-minus" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+          stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <svg class="icon-plus" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+          stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
     </div>
 
-    <div class="control-row">
-      <span>Action State:</span>
-      <select id="action-select" class="premium-select">
-        <option value="auto">Auto Behavior</option>
-        <option value="idle">Idle</option>
-        <option value="walk">Walk</option>
-        <option value="run">Run</option>
-        <option value="float">Floating</option>
-        <option value="sleep">Sleeping</option>
-      </select>
-    </div>
+    <div class="panel-content">
+      <div class="control-row">
+        <span>Physics Mode:</span>
+        <button id="toggle-gravity" class="premium-btn">Gravity Mode</button>
+      </div>
 
-    <div class="control-row">
-      <span>Panda Skin:</span>
-      <select id="skin-select" class="premium-select">
-        <option value="classic">Classic Monochrome</option>
-        <option value="gold">Golden Mech</option>
-        <option value="rose">Rose Gold</option>
-        <option value="ruby">Ruby Red</option>
-        <option value="emerald">Emerald Green</option>
-      </select>
-    </div>
+      <div class="control-row">
+        <span>Action State:</span>
+        <select id="action-select" class="premium-select">
+          <option value="auto">Auto Behavior</option>
+          <option value="idle">Idle</option>
+          <option value="walk">Walk</option>
+          <option value="run">Run</option>
+          <option value="float">Floating</option>
+          <option value="sleep">Sleeping</option>
+        </select>
+      </div>
 
-    <div class="control-row">
-      <span>Your Name:</span>
-      <input type="text" id="name-input" class="premium-input" placeholder="Tell your name..." maxlength="12">
-    </div>
+      <div class="control-row">
+        <span>Panda Skin:</span>
+        <select id="skin-select" class="premium-select">
+          <option value="classic">Classic Monochrome</option>
+          <option value="ruby">Ruby Red</option>
+          <option value="midnight">Midnight Ninja</option>
+          <option value="frost">Frosty Ice</option>
+          <option value="ghost">Ghostly Phantom</option>
+        </select>
+      </div>
 
-    <div class="control-row">
-      <span>Pin a Note:</span>
-      <input type="text" id="note-input" class="premium-input" placeholder="Type a message..." maxlength="30">
-    </div>
+      <div class="control-row">
+        <span>Your Name:</span>
+        <input type="text" id="name-input" class="premium-input" placeholder="Tell your name..." maxlength="12">
+      </div>
 
-    <div class="control-row">
-      <span>Focus Mode:</span>
-      <button id="pomodoro-btn" class="premium-btn">Start Pomodoro</button>
-    </div>
+      <div class="control-row">
+        <span>Pin a Note:</span>
+        <input type="text" id="note-input" class="premium-input" placeholder="Type a message..." maxlength="30">
+      </div>
 
-    <hr class="divider">
+      <div class="control-row">
+        <span>Focus Mode:</span>
+        <button id="pomodoro-btn" class="premium-btn">Start Pomodoro</button>
+      </div>
 
-    <div class="instructions">
-      <p>🖱️ <b>Wiggle mouse</b> over head to pet him (hearts!).</p>
-      <p>⌨️ <b>Type in Note</b> to watch him knead (Overheats!).</p>
-      <p>🚀 <b>Drag pet fast</b> to watch him stretch & wobble!</p>
-      <p>⚡ <b>Double-Click</b> him to toggle Anti-Gravity.</p>
+      <div class="control-row">
+        <span>Stretch Timer:</span>
+        <div style="display: flex; gap: 4px; align-items: center; width: 150px;">
+          <input type="number" id="stretch-input" class="premium-input" style="width: 40px; padding: 4px;" value="30" min="1" max="120">
+          <span style="font-size: 10px; margin-right: 4px;">min</span>
+          <button id="stretch-timer-btn" class="premium-btn" style="flex: 1; padding: 4px;">Start</button>
+        </div>
+      </div>
+
+      <div class="control-row">
+        <span>Set Reminder:</span>
+        <div style="display: flex; flex-direction: column; gap: 4px; width: 150px;">
+          <input type="time" id="alarm-time" class="premium-input" style="padding: 4px; width: 100%; box-sizing: border-box;">
+          <input type="text" id="alarm-topic" class="premium-input" placeholder="Topic..." maxlength="20" style="padding: 4px; width: 100%; box-sizing: border-box;">
+          <button id="alarm-btn" class="premium-btn" style="padding: 4px; width: 100%;">Set Alarm</button>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="instructions">
+        <p>🖱️ <b>Wiggle mouse</b> over head to pet him (hearts!).</p>
+        <p>⌨️ <b>Type in Note</b> to watch him knead (Overheats!).</p>
+        <p>🚀 <b>Drag pet fast</b> to watch him stretch & wobble!</p>
+        <p>⚡ <b>Double-Click</b> him to toggle Anti-Gravity.</p>
+      </div>
     </div>
   </div>
 
   <script src="renderer.js"></script>
 </body>
+
 </html>

@@ -11,5 +11,8 @@
   "license": "ISC",
   "devDependencies": {
     "electron": "^30.0.1"
+  },
+  "dependencies": {
+    "uiohook-napi": "^1.5.5"
   }
 }
