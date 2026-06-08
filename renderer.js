@@ -856,6 +856,64 @@ document.getElementById('action-select').addEventListener('change', (e) => {
 });
 
 // ==========================================
+// DRAGGABLE & COLLAPSIBLE WIDGET LOGIC
+// ==========================================
+let isUiDragging = false;
+let uiStartX = 0;
+let uiStartY = 0;
+let uiOffsetLeft = 0;
+let uiOffsetTop = 0;
+
+const uiHeader = document.querySelector('.panel-header');
+
+uiHeader.addEventListener('mousedown', (e) => {
+  if (e.button !== 0 || e.target.id === 'minimize-btn') return;
+  
+  isUiDragging = true;
+  uiStartX = e.clientX;
+  uiStartY = e.clientY;
+  
+  const rect = uiPanel.getBoundingClientRect();
+  uiOffsetLeft = rect.left;
+  uiOffsetTop = rect.top;
+  
+  e.preventDefault();
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (isUiDragging) {
+    const dx = e.clientX - uiStartX;
+    const dy = e.clientY - uiStartY;
+    
+    uiPanel.style.left = `${uiOffsetLeft + dx}px`;
+    uiPanel.style.top = `${uiOffsetTop + dy}px`;
+    uiPanel.style.right = 'auto'; // Break initial right constraint
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  isUiDragging = false;
+});
+
+// Minimize/Collapse toggle
+let isPanelCollapsed = false;
+document.getElementById('minimize-btn').addEventListener('click', () => {
+  isPanelCollapsed = !isPanelCollapsed;
+  const panelBody = document.getElementById('panel-body');
+  const btn = document.getElementById('minimize-btn');
+  
+  if (isPanelCollapsed) {
+    panelBody.style.display = 'none';
+    uiPanel.classList.add('collapsed');
+    btn.textContent = '＋';
+  } else {
+    panelBody.style.display = '';
+    uiPanel.classList.remove('collapsed');
+    btn.textContent = 'ー';
+  }
+});
+
+// ==========================================
 // GAME LOOP
 // ==========================================
 function gameLoop() {

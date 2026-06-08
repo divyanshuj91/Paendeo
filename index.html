@@ -10,60 +10,66 @@
   <!-- Transparent canvas for desktop pet rendering -->
   <canvas id="petCanvas"></canvas>
 
-  <!-- Interactive overlay UI panel -->
+  <!-- Interactive overlay UI panel / Draggable Widget -->
   <div id="ui-panel">
-    <h3>🐼 Paendeo</h3>
+    <div class="panel-header">
+      <h3>🐼 Paendeo</h3>
+      <button id="minimize-btn" class="minimize-icon">ー</button>
+    </div>
     
-    <div class="control-row">
-      <span>Physics Mode:</span>
-      <button id="toggle-gravity" class="premium-btn">Gravity Mode</button>
-    </div>
+    <!-- Collapsible widget body -->
+    <div id="panel-body">
+      <div class="control-row">
+        <span>Physics Mode:</span>
+        <button id="toggle-gravity" class="premium-btn">Gravity Mode</button>
+      </div>
 
-    <div class="control-row">
-      <span>Action State:</span>
-      <select id="action-select" class="premium-select">
-        <option value="auto">Auto Behavior</option>
-        <option value="idle">Idle</option>
-        <option value="walk">Walk</option>
-        <option value="run">Run</option>
-        <option value="float">Floating</option>
-        <option value="sleep">Sleeping</option>
-      </select>
-    </div>
+      <div class="control-row">
+        <span>Action State:</span>
+        <select id="action-select" class="premium-select">
+          <option value="auto">Auto Behavior</option>
+          <option value="idle">Idle</option>
+          <option value="walk">Walk</option>
+          <option value="run">Run</option>
+          <option value="float">Floating</option>
+          <option value="sleep">Sleeping</option>
+        </select>
+      </div>
 
-    <div class="control-row">
-      <span>Panda Skin:</span>
-      <select id="skin-select" class="premium-select">
-        <option value="classic">Classic Monochrome</option>
-        <option value="gold">Golden Mech</option>
-        <option value="rose">Rose Gold</option>
-        <option value="ruby">Ruby Red</option>
-        <option value="emerald">Emerald Green</option>
-      </select>
-    </div>
+      <div class="control-row">
+        <span>Panda Skin:</span>
+        <select id="skin-select" class="premium-select">
+          <option value="classic">Classic Monochrome</option>
+          <option value="gold">Golden Mech</option>
+          <option value="rose">Rose Gold</option>
+          <option value="ruby">Ruby Red</option>
+          <option value="emerald">Emerald Green</option>
+        </select>
+      </div>
 
-    <div class="control-row">
-      <span>Your Name:</span>
-      <input type="text" id="name-input" class="premium-input" placeholder="Tell your name..." maxlength="12">
-    </div>
+      <div class="control-row">
+        <span>Your Name:</span>
+        <input type="text" id="name-input" class="premium-input" placeholder="Tell your name..." maxlength="12">
+      </div>
 
-    <div class="control-row">
-      <span>Pin a Note:</span>
-      <input type="text" id="note-input" class="premium-input" placeholder="Type a message..." maxlength="30">
-    </div>
+      <div class="control-row">
+        <span>Pin a Note:</span>
+        <input type="text" id="note-input" class="premium-input" placeholder="Type a message..." maxlength="30">
+      </div>
 
-    <div class="control-row">
-      <span>Focus Mode:</span>
-      <button id="pomodoro-btn" class="premium-btn">Start Pomodoro</button>
-    </div>
+      <div class="control-row">
+        <span>Focus Mode:</span>
+        <button id="pomodoro-btn" class="premium-btn">Start Pomodoro</button>
+      </div>
 
-    <hr class="divider">
+      <hr class="divider">
 
-    <div class="instructions">
-      <p>🖱️ <b>Wiggle mouse</b> over head to pet him (hearts!).</p>
-      <p>⌨️ <b>Type in Note</b> to watch him knead (Overheats!).</p>
-      <p>🚀 <b>Drag pet fast</b> to watch him stretch & wobble!</p>
-      <p>⚡ <b>Double-Click</b> him to toggle Anti-Gravity.</p>
+      <div class="instructions">
+        <p>🖱️ <b>Wiggle mouse</b> over head to pet him (hearts!).</p>
+        <p>⌨️ <b>Type in Note</b> to watch him knead (Overheats!).</p>
+        <p>🚀 <b>Drag pet fast</b> to watch him stretch & wobble!</p>
+        <p>⚡ <b>Double-Click</b> him to toggle Anti-Gravity.</p>
+      </div>
     </div>
   </div>
 

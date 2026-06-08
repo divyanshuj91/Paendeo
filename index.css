@@ -40,7 +40,7 @@ html, body {
   border-radius: 12px;
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
   color: #e2e8f0;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   opacity: 0.85;
 }
 
@@ -50,14 +50,58 @@ html, body {
   box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5), 0 0 15px rgba(255, 0, 255, 0.15);
 }
 
-#ui-panel h3 {
-  margin: 0 0 12px 0;
+/* Draggable Header Styling */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  cursor: move;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 12px;
+}
+
+.panel-header h3 {
+  margin: 0;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.5px;
   background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+.minimize-icon {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+  transition: color 0.2s ease, transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+  font-weight: bold;
+}
+
+.minimize-icon:hover {
+  color: #ffffff;
+  transform: scale(1.15);
+}
+
+/* Collapsed Widget Layout State */
+#ui-panel.collapsed {
+  width: 145px;
+  padding: 10px 14px;
+}
+
+#ui-panel.collapsed .panel-header {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
 }
 
 .control-row {
