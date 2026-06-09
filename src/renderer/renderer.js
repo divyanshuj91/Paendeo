@@ -3,7 +3,7 @@
 // Customize this to match your sprite sheet dimensions and grid layout.
 // ==========================================
 const SPRITE_CONFIG = {
-  filePath: "panda_spritesheet_clean.png", // Reference the cleaned image
+  filePath: "../assets/panda_spritesheet_clean.png", // Reference the cleaned image
   frameWidth: 128, // 1024 / 8 columns = 128
   frameHeight: 128, // 1024 / 8 rows = 128
   renderWidth: 64, // Size lowered to 64px for a cute desktop scale
@@ -1075,6 +1075,8 @@ if (window.electronAPI && window.electronAPI.onPetControl) {
     }
   });
 }
+
+
 
 // ==========================================
 // GAME LOOP

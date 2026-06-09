@@ -27,27 +27,39 @@ Start the application by running:
 
 ---
 
-##  How to Contribute
+## 🤝 How to Contribute
 
-We welcome contributions from the developer community! To submit changes, please follow this workflow:
+We welcome contributions! To maintain security and repository integrity, please adhere strictly to the following contribution workflow.
 
-### 1. Repository Setup
-1. Fork this repository to your own GitHub account.
-2. Clone your fork locally.
-3. Create a new branch for your feature or bug fix:
+> [!IMPORTANT]
+> **Repository Security Guidelines**:
+> 1. **No Direct Commits**: Developers must fork and clone the repository. Direct pushes to the `main` branch are restricted.
+> 2. **Pull Requests Only**: All features, patches, and bug fixes must be submitted via a Pull Request (PR) for review.
+> 3. **No Force Pushing**: Force pushes (`git push --force` or `git push -f`) to the upstream repository branches are strictly prohibited.
+
+### Contribution Workflow
+
+1. **Fork and Clone**:
+   Fork the repository to your own GitHub account, then clone your fork locally:
+   ```bash
+   git clone https://github.com/your-username/Paendeo.git
+   ```
+
+2. **Branching**:
+   Create a dedicated branch for your change:
    ```bash
    git checkout -b feature/your-feature-name
    ```
 
-### 2. Code Contribution Guidelines
-- **Modularity**: Keep components, physics, and canvas render cycles decoupled.
-- **Boilerplate Cleanliness**: Ensure configuration blocks (like frame rates and canvas sizes) are grouped at the top of their respective files for easy tweaking.
-- **Assets**: If modifying or adding sprite assets, verify that background removal transparency maps cleanly and does not leave grid borders.
+3. **Coding Standards**:
+   - Keep code modular and decouple layout components from rendering cycles.
+   - Maintain configuration values in designated configs at the top of files.
+   - Clean custom sprite sheet grids of background artifacts using the cleaning script.
 
-### 3. Submission
-1. Commit your changes with clear, descriptive commit messages.
-2. Push your branch to your GitHub fork:
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-3. Open a **Pull Request (PR)** against the main branch of this repository. Provide a description of the changes made and any verification tests performed.
+4. **Submission**:
+   - Push commits to your fork:
+     ```bash
+     git push origin feature/your-feature-name
+     ```
+   - Open a **Pull Request (PR)** from your fork's feature branch to this upstream repository's `main` branch. 
+   - Direct force-commits or force-pushes targeting remote branches on this repository are blocked by repository rules.

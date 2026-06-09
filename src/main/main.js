@@ -28,7 +28,10 @@ function createWindow() {
     },
   });
 
+  // Load the index.html file
   mainWindow.loadFile("index.html");
+
+  // Let the window be visible on all workspaces/virtual desktops (for macOS/Linux compat)
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   mainWindow.setIgnoreMouseEvents(true, { forward: true });
 
@@ -114,13 +117,13 @@ app.on("window-all-closed", () => {
   }
 });
 
-uIOhook.on('keydown', (e) => {
+uIOhook.on("keydown", (e) => {
   if (mainWindow) {
-    mainWindow.webContents.send('global-keydown', e);
+    mainWindow.webContents.send("global-keydown", e);
   }
 });
 uIOhook.start();
 
-app.on('before-quit', () => {
+app.on("before-quit", () => {
   uIOhook.stop();
 });
