@@ -3,6 +3,7 @@ const path = require("node:path");
 const { uIOhook } = require("uiohook-napi");
 
 let mainWindow = null;
+let dashboardWindow = null;
 
 function createWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();
@@ -28,35 +29,77 @@ function createWindow() {
   });
 
   // Load the index.html file
-  mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
+  mainWindow.loadFile("index.html");
 
   // Let the window be visible on all workspaces/virtual desktops (for macOS/Linux compat)
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-
-  // Set initial window behavior to click-through
-  // Using forward: true enables the renderer to still receive mousemove events
   mainWindow.setIgnoreMouseEvents(true, { forward: true });
 
-  // Handle click-through toggle via IPC from renderer
   ipcMain.on("set-ignore-mouse-events", (event, ignore, options) => {
     const win = BrowserWindow.fromWebContents(event.sender);
-    if (win) {
+    if (win && win === mainWindow) {
       win.setIgnoreMouseEvents(ignore, options);
     }
   });
 
-  // Allow requesting the primary screen's dimensions
   ipcMain.handle("get-screen-dimensions", () => {
     return { width, height };
   });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
+    if (dashboardWindow) {
+      dashboardWindow.close();
+    }
+  });
+
+  // Create Dashboard Window
+  dashboardWindow = new BrowserWindow({
+    width: 330,
+    height: 500,
+    x: primaryDisplay.bounds.width - 350,
+    y: 50,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    hasShadow: false,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  dashboardWindow.loadFile("dashboard.html");
+
+  dashboardWindow.on("closed", () => {
+    dashboardWindow = null;
+    if (mainWindow) {
+      mainWindow.close();
+    }
+  });
+
+  // IPC Routing
+  ipcMain.on("pet-control", (event, data) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("pet-control", data);
+    }
+  });
+
+  ipcMain.on("dashboard-update", (event, data) => {
+    if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+      dashboardWindow.webContents.send("dashboard-update", data);
+    }
+  });
+
+  ipcMain.on("minimize-dashboard", () => {
+    if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+      dashboardWindow.minimize();
+    }
   });
 }
 
-// Ensure transparent window works properly on Linux/Windows
-app.disableHardwareAcceleration(); // Sometimes helps with transparency rendering glitches
+app.disableHardwareAcceleration();
 
 app.whenReady().then(() => {
   createWindow();
@@ -74,13 +117,13 @@ app.on("window-all-closed", () => {
   }
 });
 
-uIOhook.on('keydown', (e) => {
+uIOhook.on("keydown", (e) => {
   if (mainWindow) {
-    mainWindow.webContents.send('global-keydown', e);
+    mainWindow.webContents.send("global-keydown", e);
   }
 });
 uIOhook.start();
 
-app.on('before-quit', () => {
+app.on("before-quit", () => {
   uIOhook.stop();
 });
