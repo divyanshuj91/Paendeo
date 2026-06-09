@@ -35,7 +35,6 @@ const ANTIGRAVITY_FLOAT_SPEED = 2.5;
 // ==========================================
 const canvas = document.getElementById("petCanvas");
 const ctx = canvas.getContext("2d");
-const uiPanel = document.getElementById("ui-panel");
 
 // Screen bounds (updated dynamically)
 let screenWidth = window.innerWidth;
@@ -74,18 +73,9 @@ let typingHeat = 0;
 let mouseIdleTicks = 0;
 let pettingMeter = 0;
 
-// Typing event listener (Note Pin Input)
-document.getElementById("note-input").addEventListener("input", () => {
-  typingHeat = Math.min(typingHeat + 14, 100);
-});
-
-// Name Input Greeting trigger
-document.getElementById("name-input").addEventListener("change", (e) => {
-  const name = e.target.value.trim();
-  if (name) {
-    showGreetingBubble(`Hello, ${name}! 🐼`, 3500);
-  }
-});
+let currentNote = "";
+let currentTimerText = "";
+let currentAction = "auto";
 
 window.addEventListener("keydown", (e) => {
   keysPressed[e.key.toLowerCase()] = true;
@@ -103,161 +93,6 @@ window.addEventListener("keydown", (e) => {
 
 window.addEventListener("keyup", (e) => {
   keysPressed[e.key.toLowerCase()] = false;
-});
-
-// ==========================================
-// POMODORO FOCUS TIMER SYSTEM
-// ==========================================
-let pomodoroState = "none"; // 'none', 'focus', 'break'
-let pomodoroRemaining = 0;
-let pomodoroInterval = null;
-
-function formatTime(secs) {
-  const m = Math.floor(secs / 60)
-    .toString()
-    .padStart(2, "0");
-  const s = (secs % 60).toString().padStart(2, "0");
-  return `${m}:${s}`;
-}
-
-document.getElementById("pomodoro-btn").addEventListener("click", () => {
-  const btn = document.getElementById("pomodoro-btn");
-  if (pomodoroState === "none") {
-    pomodoroState = "focus";
-    pomodoroRemaining = 25 * 60; // 25 minutes
-    btn.textContent = "Stop Focus";
-    btn.classList.add("timer-running");
-    showGreetingBubble("Focus session started! 💻", 3000);
-
-    pomodoroInterval = setInterval(() => {
-      if (pomodoroRemaining > 0) {
-        pomodoroRemaining--;
-      } else {
-        // Pomodoro Cycle Done -> Jump / Hop and switch
-        clearInterval(pomodoroInterval);
-        pet.vy = -12; // Happy hop
-
-        if (pomodoroState === "focus") {
-          pomodoroState = "break";
-          pomodoroRemaining = 5 * 60; // 5 mins break
-          btn.textContent = "Stop Break";
-          showGreetingBubble("Take a break! ☕ You did great.", 5000);
-        } else {
-          pomodoroState = "none";
-          btn.textContent = "Start Pomodoro";
-          btn.classList.remove("timer-running");
-          showGreetingBubble("Let's focus again! 🚀", 5000);
-        }
-      }
-    }, 1000);
-  } else {
-    clearInterval(pomodoroInterval);
-    pomodoroState = "none";
-    pomodoroRemaining = 0;
-    btn.textContent = "Start Pomodoro";
-    btn.classList.remove("timer-running");
-  }
-});
-
-// ==========================================
-// STRETCH TIMER SYSTEM
-// ==========================================
-let stretchTimerState = "none"; // 'none', 'running', 'stretching'
-let stretchRemaining = 0;
-let stretchIntervalObj = null;
-
-document.getElementById("stretch-timer-btn").addEventListener("click", () => {
-  const btn = document.getElementById("stretch-timer-btn");
-  if (stretchTimerState === "none") {
-    const inputVal = parseInt(document.getElementById("stretch-input").value, 10);
-    const mins = isNaN(inputVal) || inputVal < 1 ? 30 : inputVal;
-    
-    stretchTimerState = "running";
-    stretchRemaining = mins * 60;
-    btn.textContent = "Stop";
-    btn.classList.add("timer-running");
-    showGreetingBubble(`Stretch timer set for ${mins} mins! 🤸`, 3000);
-
-    stretchIntervalObj = setInterval(() => {
-      if (stretchTimerState === "running") {
-        if (stretchRemaining > 0) {
-          stretchRemaining--;
-        } else {
-          // Time to stretch!
-          stretchTimerState = "stretching";
-          showGreetingBubble("Time to stretch! 🤸 Stand up!", 8000);
-          pet.state = "stretch";
-          pet.vx = 0;
-          pet.vy = 0;
-          
-          setTimeout(() => {
-            if (stretchTimerState === "stretching") {
-              stretchTimerState = "running";
-              stretchRemaining = mins * 60; // Reset for next cycle
-              pet.state = "idle";
-            }
-          }, 8000); // 8 seconds of stretch
-        }
-      }
-    }, 1000);
-  } else {
-    // Stop the timer
-    stretchTimerState = "none";
-    clearInterval(stretchIntervalObj);
-    btn.textContent = "Start";
-    btn.classList.remove("timer-running");
-    if (pet.state === "stretch") {
-      pet.state = "idle";
-    }
-  }
-});
-
-// ==========================================
-// ALARM REMINDER SYSTEM
-// ==========================================
-let activeReminder = null; // { topic: string, targetMs: number, warningTriggered: boolean, alarmTriggered: boolean }
-let alarmResetTimeout = null;
-
-document.getElementById("alarm-btn").addEventListener("click", () => {
-  const btn = document.getElementById("alarm-btn");
-  if (activeReminder) {
-    activeReminder = null;
-    btn.textContent = "Set Alarm";
-    btn.classList.remove("timer-running");
-    if (pet.state === "alarm") pet.state = "idle";
-    clearTimeout(alarmResetTimeout);
-    showGreetingBubble("Alarm cancelled. 🔕", 3000);
-    return;
-  }
-
-  const timeInput = document.getElementById("alarm-time").value;
-  const topicInput = document.getElementById("alarm-topic").value.trim() || "Reminder";
-
-  if (!timeInput) {
-    showGreetingBubble("Please select a time first! 🕒", 3000);
-    return;
-  }
-
-  const [hours, minutes] = timeInput.split(":").map(Number);
-  const now = new Date();
-  let targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0);
-
-  if (targetDate.getTime() <= now.getTime()) {
-    targetDate.setDate(targetDate.getDate() + 1);
-  }
-
-  activeReminder = {
-    topic: topicInput,
-    targetMs: targetDate.getTime(),
-    warningTriggered: false,
-    alarmTriggered: false
-  };
-
-  btn.textContent = "Cancel Alarm";
-  btn.classList.add("timer-running");
-
-  const formattedTime = targetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  showGreetingBubble(`Alarm set for ${formattedTime}! ⏰`, 4000);
 });
 
 // ==========================================
@@ -376,7 +211,7 @@ class DesktopPet {
       }
       this.vy += GRAVITY;
       this.y += this.vy;
-      
+
       if (this.y >= floorY) {
         this.y = floorY;
         this.vy = 0;
@@ -427,8 +262,7 @@ class DesktopPet {
       }
     } else {
       // 3. Mouse chasing / Purring / Kneading / Auto behavior
-      const isAutoBehavior =
-        document.getElementById("action-select").value === "auto";
+      const isAutoBehavior = currentAction === "auto";
 
       if (this.isAntiGravity) {
         // Float mode: DVD Logo Bouncing
@@ -501,7 +335,7 @@ class DesktopPet {
             }
           } else {
             // Manual dropdown state override
-            this.state = document.getElementById("action-select").value;
+            this.state = currentAction;
             if (this.state === "walk" || this.state === "run") {
               if (Math.abs(this.vx) < 0.2) {
                 this.vx =
@@ -655,11 +489,12 @@ class DesktopPet {
       this.state = "idle";
     }
 
-    const btn = document.getElementById("toggle-gravity");
-    btn.textContent = this.isAntiGravity ? "Anti-Gravity" : "Gravity Mode";
-    btn.style.background = this.isAntiGravity
-      ? "linear-gradient(135deg, #ec4899 0%, #be185d 100%)"
-      : "linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)";
+    if (window.electronAPI && window.electronAPI.sendDashboardUpdate) {
+      window.electronAPI.sendDashboardUpdate({
+        type: "gravity-toggled",
+        value: this.isAntiGravity,
+      });
+    }
   }
 
   draw(ctx, skinFilter) {
@@ -762,23 +597,23 @@ class DesktopPet {
     }
 
     // Draw Universal Keyboard if typing
-    const isTypingActive = (Date.now() - lastKeystrokeTime) < 300;
+    const isTypingActive = Date.now() - lastKeystrokeTime < 300;
     if (this.state === "knead" && isTypingActive) {
       const s = this.width / 64;
       let bY = 0;
       if (this.state === "idle") {
-         bY = Math.sin((this.animFrameIndex + this.animTick) * 0.15) * 1 * s;
+        bY = Math.sin((this.animFrameIndex + this.animTick) * 0.15) * 1 * s;
       }
-      
+
       let leftDown = false;
       let rightDown = false;
-      
+
       if (typingHeat > 85) {
-         leftDown = Math.sin(Date.now() * 0.08) > 0;
-         rightDown = Math.sin(Date.now() * 0.08 + Math.PI) > 0;
+        leftDown = Math.sin(Date.now() * 0.08) > 0;
+        rightDown = Math.sin(Date.now() * 0.08 + Math.PI) > 0;
       } else {
-         leftDown = Math.sin(Date.now() * 0.04) > 0;
-         rightDown = Math.sin(Date.now() * 0.04 + Math.PI) > 0;
+        leftDown = Math.sin(Date.now() * 0.04) > 0;
+        rightDown = Math.sin(Date.now() * 0.04 + Math.PI) > 0;
       }
 
       ctx.fillStyle = "#1e293b"; // Dark grey chassis (B/W)
@@ -813,28 +648,28 @@ class DesktopPet {
 
     // Draw Alarm Rings
     if (this.state === "alarm") {
-       const s = this.width / 64;
-       ctx.strokeStyle = "#eab308"; // Yellow rings
-       ctx.lineWidth = 2 * s;
-       ctx.lineCap = "round";
-       
-       const timeOffset = Date.now() * 0.005;
-       for (let i = 0; i < 3; i++) {
-         const radius = 10 * s + ((timeOffset + i * 10) % 30) * s;
-         const opacity = 1 - (radius / (40 * s));
-         ctx.globalAlpha = Math.max(0, opacity);
-         
-         // Left rings
-         ctx.beginPath();
-         ctx.arc(10 * s, 20 * s, radius, Math.PI * 0.7, Math.PI * 1.3);
-         ctx.stroke();
+      const s = this.width / 64;
+      ctx.strokeStyle = "#eab308"; // Yellow rings
+      ctx.lineWidth = 2 * s;
+      ctx.lineCap = "round";
 
-         // Right rings
-         ctx.beginPath();
-         ctx.arc(54 * s, 20 * s, radius, -Math.PI * 0.3, Math.PI * 0.3);
-         ctx.stroke();
-       }
-       ctx.globalAlpha = 1.0;
+      const timeOffset = Date.now() * 0.005;
+      for (let i = 0; i < 3; i++) {
+        const radius = 10 * s + ((timeOffset + i * 10) % 30) * s;
+        const opacity = 1 - radius / (40 * s);
+        ctx.globalAlpha = Math.max(0, opacity);
+
+        // Left rings
+        ctx.beginPath();
+        ctx.arc(10 * s, 20 * s, radius, Math.PI * 0.7, Math.PI * 1.3);
+        ctx.stroke();
+
+        // Right rings
+        ctx.beginPath();
+        ctx.arc(54 * s, 20 * s, radius, -Math.PI * 0.3, Math.PI * 0.3);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1.0;
     }
 
     ctx.restore();
@@ -1088,48 +923,12 @@ let currentMouseX = 0;
 let currentMouseY = 0;
 let lastWiggleDirection = 0;
 
-// Dashboard panel drag state
-let isDraggingPanel = false;
-let panelStartX = 0;
-let panelStartY = 0;
-let panelWidth = 0;
-let panelHeight = 0;
-let mouseStartX = 0;
-let mouseStartY = 0;
-
 let lastIgnoreMouseState = null;
 
 window.addEventListener("mousemove", (e) => {
   currentMouseX = e.clientX;
   currentMouseY = e.clientY;
   mouseIdleTicks = 0; // Reset mouse idle timer on movement
-
-  if (isDraggingPanel) {
-    const dx = e.clientX - mouseStartX;
-    const dy = e.clientY - mouseStartY;
-
-    let newLeft = panelStartX + dx;
-    let newTop = panelStartY + dy;
-
-    // Constrain to screen boundaries using cached dimensions to avoid layout thrashing
-    const maxLeft = window.innerWidth - panelWidth;
-    const maxTop = window.innerHeight - panelHeight;
-
-    newLeft = Math.max(0, Math.min(newLeft, maxLeft));
-    newTop = Math.max(0, Math.min(newTop, maxTop));
-
-    uiPanel.style.left = `${newLeft}px`;
-    uiPanel.style.top = `${newTop}px`;
-    uiPanel.style.right = "auto";
-    uiPanel.style.bottom = "auto";
-  }
-
-  const uiRect = uiPanel.getBoundingClientRect();
-  const isOverUI =
-    currentMouseX >= uiRect.left &&
-    currentMouseX <= uiRect.right &&
-    currentMouseY >= uiRect.top &&
-    currentMouseY <= uiRect.bottom;
 
   const isOverPet = pet.containsPoint(currentMouseX, currentMouseY);
 
@@ -1153,7 +952,7 @@ window.addEventListener("mousemove", (e) => {
   prevMouseY = currentMouseY;
 
   // Throttle / Deduplicate IPC messages to setIgnoreMouse
-  const shouldIgnore = !(isOverPet || isOverUI || isDraggingPanel);
+  const shouldIgnore = !isOverPet;
   if (shouldIgnore !== lastIgnoreMouseState) {
     lastIgnoreMouseState = shouldIgnore;
     window.electronAPI.setIgnoreMouse(shouldIgnore);
@@ -1179,8 +978,6 @@ window.addEventListener("mouseup", () => {
     pet.isDragging = false;
     pet.state = pet.isAntiGravity ? "float" : "idle";
   }
-  isDraggingPanel = false;
-  uiPanel.classList.remove("dragging");
 });
 
 window.addEventListener("dblclick", (e) => {
@@ -1193,6 +990,7 @@ window.addEventListener("dblclick", (e) => {
 // SKIN SELECTION BINDINGS & COLOR MAP
 // ==========================================
 let currentSkin = "classic";
+let currentUserName = "";
 let lastKeystrokeTime = 0;
 
 if (window.electronAPI && window.electronAPI.onGlobalKeydown) {
@@ -1207,74 +1005,76 @@ if (window.electronAPI && window.electronAPI.onGlobalKeydown) {
   });
 }
 
-document.getElementById("skin-select").addEventListener("change", (e) => {
-  currentSkin = e.target.value;
-});
+let activeReminder = null; // { topic: string, targetMs: number, warningTriggered: boolean, alarmTriggered: boolean }
+let alarmResetTimeout = null;
 
-document.getElementById("toggle-gravity").addEventListener("click", () => {
-  pet.toggleAntiGravity();
-});
-
-document.getElementById("action-select").addEventListener("change", (e) => {
-  const selectedAction = e.target.value;
-  if (selectedAction !== "auto") {
-    pet.state = selectedAction;
-    if (selectedAction === "idle" || selectedAction === "sleep") {
-      pet.vx = 0;
-      pet.vy = 0;
+if (window.electronAPI && window.electronAPI.onPetControl) {
+  window.electronAPI.onPetControl((data) => {
+    switch (data.type) {
+      case "toggle-gravity":
+        pet.isAntiGravity = data.value;
+        if (pet.isAntiGravity) {
+          pet.vx = (Math.random() > 0.5 ? 1 : -1) * ANTIGRAVITY_FLOAT_SPEED;
+          pet.vy =
+            (Math.random() > 0.5 ? -0.8 : -1.5) * ANTIGRAVITY_FLOAT_SPEED;
+          pet.state = "float";
+        } else {
+          pet.vx = 0;
+          pet.vy = 0;
+          pet.state = "idle";
+        }
+        break;
+      case "set-action":
+        currentAction = data.value;
+        if (currentAction !== "auto") {
+          pet.state = currentAction;
+          if (
+            currentAction === "idle" ||
+            currentAction === "sleep" ||
+            currentAction === "stretch"
+          ) {
+            pet.vx = 0;
+            pet.vy = 0;
+          }
+        }
+        break;
+      case "set-skin":
+        currentSkin = data.value;
+        break;
+      case "set-name":
+        currentUserName = data.value;
+        break;
+      case "set-note":
+        currentNote = data.value;
+        break;
+      case "note-typing":
+        typingHeat = Math.min(typingHeat + 14, 100);
+        break;
+      case "show-greeting":
+        showGreetingBubble(data.text, data.duration);
+        break;
+      case "set-timer":
+        currentTimerText = data.text;
+        break;
+      case "pet-hop":
+        pet.vy = -12;
+        break;
+      case "set-alarm":
+        activeReminder = {
+          topic: data.topic,
+          targetMs: data.targetMs,
+          warningTriggered: false,
+          alarmTriggered: false,
+        };
+        break;
+      case "cancel-alarm":
+        activeReminder = null;
+        if (pet.state === "alarm") pet.state = "idle";
+        clearTimeout(alarmResetTimeout);
+        break;
     }
-  }
-});
-
-document.getElementById("minimize-btn").addEventListener("click", () => {
-  const isMinimized = uiPanel.classList.toggle("minimized");
-  document.getElementById("minimize-btn").title = isMinimized
-    ? "Expand Dashboard"
-    : "Minimize Dashboard";
-
-  // If expanding, adjust coordinates to prevent the panel from overflowing the screen bounds
-  if (!isMinimized) {
-    const rect = uiPanel.getBoundingClientRect();
-    const expandedWidth = 290;
-    const expandedHeight = 350;
-
-    const rectLeft = parseFloat(uiPanel.style.left) || rect.left;
-    const rectTop = parseFloat(uiPanel.style.top) || rect.top;
-
-    if (rectLeft + expandedWidth > window.innerWidth) {
-      const newLeft = Math.max(0, window.innerWidth - expandedWidth - 20);
-      uiPanel.style.left = `${newLeft}px`;
-    }
-    if (rectTop + expandedHeight > window.innerHeight) {
-      const newTop = Math.max(0, window.innerHeight - expandedHeight - 20);
-      uiPanel.style.top = `${newTop}px`;
-    }
-  }
-});
-
-// Panel dragging implementation
-const panelHeader = document.querySelector(".panel-header");
-panelHeader.addEventListener("mousedown", (e) => {
-  // Do not drag if user clicked minimize button or its children
-  if (e.target.closest("#minimize-btn")) {
-    return;
-  }
-
-  isDraggingPanel = true;
-  mouseStartX = e.clientX;
-  mouseStartY = e.clientY;
-
-  const rect = uiPanel.getBoundingClientRect();
-  panelStartX = rect.left;
-  panelStartY = rect.top;
-  panelWidth = rect.width;
-  panelHeight = rect.height;
-
-  uiPanel.classList.add("dragging");
-
-  // Prevent default to avoid selection side-effects
-  e.preventDefault();
-});
+  });
+}
 
 // ==========================================
 // GAME LOOP
@@ -1298,19 +1098,26 @@ function gameLoop() {
   // 1-Minute Warning & Alarm Check
   if (activeReminder) {
     const msRemaining = activeReminder.targetMs - Date.now();
-    const nameInput = document.getElementById("name-input");
-    const userName = nameInput ? nameInput.value.trim() : "";
-    const greeting = userName ? `Hey ${userName}! ` : "";
-    
+    const greeting = currentUserName ? `Hey ${currentUserName}! ` : "";
+
     // 1-Minute Warning Trigger
-    if (msRemaining <= 60000 && msRemaining > 0 && !activeReminder.warningTriggered) {
+    if (
+      msRemaining <= 60000 &&
+      msRemaining > 0 &&
+      !activeReminder.warningTriggered
+    ) {
       activeReminder.warningTriggered = true;
       pet.state = "alarm";
       pet.vx = 0;
       pet.vy = 0;
-      
-      const formattedTime = new Date(activeReminder.targetMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      showGreetingBubble(`⏰ ${greeting}Upcoming in 1 min: ${activeReminder.topic} (${formattedTime})`, 10000);
+
+      const formattedTime = new Date(
+        activeReminder.targetMs,
+      ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      showGreetingBubble(
+        `⏰ ${greeting}Upcoming in 1 min: ${activeReminder.topic} (${formattedTime})`,
+        10000,
+      );
 
       alarmResetTimeout = setTimeout(() => {
         if (pet.state === "alarm") pet.state = "idle";
@@ -1323,14 +1130,18 @@ function gameLoop() {
       pet.state = "alarm";
       pet.vx = 0;
       pet.vy = 0;
-      
+
       clearTimeout(alarmResetTimeout);
-      showGreetingBubble(`🚨 ${greeting}IT'S TIME FOR: ${activeReminder.topic}! 🚨`, 15000);
+      showGreetingBubble(
+        `🚨 ${greeting}IT'S TIME FOR: ${activeReminder.topic}! 🚨`,
+        15000,
+      );
 
       alarmResetTimeout = setTimeout(() => {
         if (pet.state === "alarm") pet.state = "idle";
-        document.getElementById("alarm-btn").textContent = "Set Alarm";
-        document.getElementById("alarm-btn").classList.remove("timer-running");
+        if (window.electronAPI && window.electronAPI.sendDashboardUpdate) {
+          window.electronAPI.sendDashboardUpdate({ type: "alarm-finished" });
+        }
         activeReminder = null;
       }, 15000); // Shake and jump for 15 seconds
     }
@@ -1381,7 +1192,7 @@ function gameLoop() {
   pet.draw(ctx, skinFilter);
 
   // Fast Overheat Tint
-  if (typingHeat > 85) {
+  if (typingHeat > 130) {
     ctx.save();
     ctx.globalCompositeOperation = "source-atop";
     ctx.fillStyle = "rgba(239, 68, 68, 0.4)";
@@ -1389,20 +1200,13 @@ function gameLoop() {
     ctx.restore();
   }
 
-  // Draw Pinned Note or Timer speech bubbles above head
-  const noteText = document.getElementById("note-input").value.trim();
-  const timerText =
-    pomodoroState !== "none"
-      ? `⏱️ Pomodoro (${formatTime(pomodoroRemaining)})`
-      : "";
-
   // Override: show petting feedback
-  let displayedText = noteText;
+  let displayedText = currentNote;
   if (pettingMeter > 8) {
     displayedText = "Purr... ❤️";
   }
 
-  drawSpeechBubble(ctx, pet, displayedText, timerText, greetingText);
+  drawSpeechBubble(ctx, pet, displayedText, currentTimerText, greetingText);
 
   // Update & Draw particles
   for (let i = particles.length - 1; i >= 0; i--) {
