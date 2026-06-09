@@ -29,7 +29,7 @@ function createWindow() {
   });
 
   // Load the index.html file
-  mainWindow.loadFile("index.html");
+  mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
 
   // Let the window be visible on all workspaces/virtual desktops (for macOS/Linux compat)
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -70,7 +70,7 @@ function createWindow() {
     },
   });
 
-  dashboardWindow.loadFile("dashboard.html");
+  dashboardWindow.loadFile(path.join(__dirname, "../renderer/dashboard.html"));
 
   dashboardWindow.on("closed", () => {
     dashboardWindow = null;
