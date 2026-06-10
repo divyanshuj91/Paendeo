@@ -22,13 +22,8 @@ const SPRITE_CONFIG = {
 };
 
 // ==========================================
-// PHYSICS CONSTANTS
+// PHYSICS CONSTANTS (Removed for Pinned Mode)
 // ==========================================
-const GRAVITY = 0.45;
-const BOUNCE_ELASTICITY = -0.55; // Floor bouncing
-const AIR_RESISTANCE = 0.99;
-const FLOOR_FRICTION = 0.9;
-const ANTIGRAVITY_FLOAT_SPEED = 2.5;
 
 // ==========================================
 // INITIAL SETUP
@@ -68,7 +63,6 @@ spriteSheetImage.onerror = () => {
 // ==========================================
 // KEYBOARD & USER INPUT STATE
 // ==========================================
-const keysPressed = {};
 let typingHeat = 0;
 let mouseIdleTicks = 0;
 let pettingMeter = 0;
@@ -77,23 +71,7 @@ let currentNote = "";
 let currentTimerText = "";
 let currentAction = "auto";
 
-window.addEventListener("keydown", (e) => {
-  keysPressed[e.key.toLowerCase()] = true;
-
-  // Up/W makes the panda jump if on the floor
-  if ((e.key === "ArrowUp" || e.key === "w") && !pet.isDragging) {
-    const floorY = screenHeight - pet.height;
-    const isOnFloor = Math.abs(pet.y - floorY) < 1;
-    if (isOnFloor && !pet.isAntiGravity) {
-      pet.vy = -10; // Jump
-      pet.state = "run";
-    }
-  }
-});
-
-window.addEventListener("keyup", (e) => {
-  keysPressed[e.key.toLowerCase()] = false;
-});
+// Keyboard controls disabled for pinned mode
 
 // ==========================================
 // SPEECH BUBBLE & GREETINGS STATE
@@ -207,249 +185,58 @@ class DesktopPet {
     this.blinkTimer = 200 + Math.random() * 150;
     this.isBlinking = false;
     this.dvdColor = "#ec4899"; // Initial DVD color (magenta)
+
+    // Hop animation offsets (pinned movement)
+    this.hopOffset = 0;
+    this.hopVelocity = 0;
   }
 
   update(mouseX, mouseY) {
-    // 1. Dragging physics override (Mochi Stretch)
+    // 1. Dragging physics override
     if (this.isDragging) {
       this.x = mouseX - this.dragOffsetX;
       this.y = mouseY - this.dragOffsetY;
-
-      this.vx = mouseX - this.prevMouseX;
-      this.vy = mouseY - this.prevMouseY;
-
-      this.prevMouseX = mouseX;
-      this.prevMouseY = mouseY;
-
       this.state = "drag";
       this.keepInBounds();
       return;
     }
 
-    const floorY = screenHeight - this.height;
-    const isOnFloor = Math.abs(this.y - floorY) < 1;
-
-    // ALARM STATE OVERRIDE (Jumping Alarm Clock)
+    // ALARM STATE OVERRIDE (Wobbles in place instead of hopping)
     if (this.state === "alarm") {
-      if (isOnFloor) {
-        this.vy = -6; // Hop up and down!
-      }
-      this.vy += GRAVITY;
-      this.y += this.vy;
-
-      if (this.y >= floorY) {
-        this.y = floorY;
-        this.vy = 0;
-      }
       this.keepInBounds();
       this.updateAnimationFrame();
       return;
     }
 
-    // 2. Keyboard Control Mode
-    let hasKeyInput = false;
-    const isLeft = keysPressed["arrowleft"] || keysPressed["a"];
-    const isRight = keysPressed["arrowright"] || keysPressed["d"];
-    const isDown = keysPressed["arrowdown"] || keysPressed["s"];
-
-    if (isLeft) {
-      this.vx = this.isAntiGravity ? -ANTIGRAVITY_FLOAT_SPEED : -2.0;
-      this.state = this.isAntiGravity ? "float" : "run";
-      this.facing = "left";
-      hasKeyInput = true;
-    } else if (isRight) {
-      this.vx = this.isAntiGravity ? ANTIGRAVITY_FLOAT_SPEED : 2.0;
-      this.state = this.isAntiGravity ? "float" : "run";
-      this.facing = "right";
-      hasKeyInput = true;
-    } else {
-      // Decelerate if no movement keys are held
-      if (!this.isAntiGravity) {
-        this.vx *= FLOOR_FRICTION;
-      }
-    }
-
-    if (isDown && !hasKeyInput && !this.isAntiGravity && isOnFloor) {
-      this.vx = 0;
+    // React to petting
+    if (pettingMeter > 8) {
       this.state = "sleep";
-      hasKeyInput = true;
-    }
-
-    // Apply movement according to keyboard or physics
-    if (hasKeyInput) {
-      if (this.isAntiGravity) {
-        this.x += this.vx;
-        this.y += this.vy;
-      } else {
-        this.vy += GRAVITY;
-        this.x += this.vx;
-        this.y += this.vy;
+      if (Math.random() < 0.08) {
+        particles.push(
+          new Particle(
+            this.x + this.width / 2 + (Math.random() - 0.5) * 10,
+            this.y + 10,
+            "heart"
+          )
+        );
       }
+    } else if (Date.now() - lastKeystrokeTime < 300) {
+      // React to typing / kneading
+      this.state = "knead";
     } else {
-      // 3. Mouse chasing / Purring / Kneading / Auto behavior
-      const isAutoBehavior = currentAction === "auto";
-
-      if (this.isAntiGravity) {
-        // Float mode: DVD Logo Bouncing
-        this.x += this.vx;
-        this.y += this.vy;
-        this.state = "float";
-
-        const currentSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-        if (currentSpeed < 1.0) {
-          this.vx = (Math.random() > 0.5 ? 1 : -1) * ANTIGRAVITY_FLOAT_SPEED;
-          this.vy = (Math.random() > 0.5 ? 1 : -1) * ANTIGRAVITY_FLOAT_SPEED;
-        } else if (currentSpeed > ANTIGRAVITY_FLOAT_SPEED) {
-          // Slowly dampen velocity back to float speed if thrown
-          this.vx *= 0.98;
-          this.vy *= 0.98;
-        }
-      } else {
-        // Gravity mode
-        this.vy += GRAVITY;
-        if (!isOnFloor) {
-          this.vx *= AIR_RESISTANCE;
-        }
-        this.x += this.vx;
-        this.y += this.vy;
-
-        if (isOnFloor) {
-          if (pettingMeter > 8) {
-            // PETTING / PURRING: Happy purr state (Feature 5)
-            this.state = "sleep";
-            this.vx = 0;
-            this.vy = 0;
-            if (Math.random() < 0.08) {
-              particles.push(
-                new Particle(
-                  this.x + this.width / 2 + (Math.random() - 0.5) * 10,
-                  this.y + 10,
-                  "heart",
-                ),
-              );
-            }
-          } else if (Date.now() - lastKeystrokeTime < 300) {
-            // TYPING / KNEADING Mode (Feature 6 & 7)
-            this.state = "knead";
-            this.vx = 0;
-            this.vy = 0;
-          } else if (isAutoBehavior) {
-            if (this.state === "knead") {
-              this.state = "idle";
-              this.behaviorTimer = 120;
-            }
-            // Cursor Chase (Feature 2 & 4)
-            const isMouseClose =
-              Math.abs(mouseX - (this.x + this.width / 2)) < 850;
-            const isMouseActive = mouseIdleTicks < 180; // Cursor moved in last 3s
-
-            if (isMouseActive && isMouseClose) {
-              const dx = mouseX - (this.x + this.width / 2);
-              if (Math.abs(dx) > 24) {
-                this.facing = dx > 0 ? "right" : "left";
-                // Mouse Hunt (Feature 4): sprint if cursor is far, walk if close
-                if (Math.abs(dx) > 180) {
-                  this.state = "run";
-                  this.vx = Math.sign(dx) * 2.2;
-                } else {
-                  this.state = "walk";
-                  this.vx = Math.sign(dx) * 1.2;
-                }
-                this.walkTargetX = null;
-              } else {
-                // Reached the mouse
-                this.vx = 0;
-                this.state = "idle";
-              }
-            } else {
-              // Default autonomous pacing
-              this.handleAutoBehavior();
-            }
-          } else {
-            // Manual dropdown state override
-            this.state = currentAction;
-            if (this.state === "walk" || this.state === "run") {
-              if (Math.abs(this.vx) < 0.2) {
-                this.vx =
-                  (this.facing === "right" ? 1 : -1) *
-                  (this.state === "run" ? 2.2 : 1.2);
-              }
-            } else {
-              this.vx = 0;
-            }
-          }
-        }
-      }
+      // Follow the dropdown action (idle or sleep)
+      this.state = currentAction === "auto" ? "idle" : currentAction;
     }
 
-    // 4. Bouncing off screen bounds
-    if (this.isAntiGravity) {
-      let bounced = false;
-      if (this.x <= 0) {
-        this.x = 0;
-        this.vx = -this.vx;
-        this.facing = "right";
-        bounced = true;
-      } else if (this.x + this.width >= screenWidth) {
-        this.x = screenWidth - this.width;
-        this.vx = -this.vx;
-        this.facing = "left";
-        bounced = true;
-      }
-
-      if (this.y <= 0) {
-        this.y = 0;
-        this.vy = -this.vy;
-        bounced = true;
-      } else if (this.y + this.height >= screenHeight) {
-        this.y = screenHeight - this.height;
-        this.vy = -this.vy;
-        bounced = true;
-      }
-
-      if (bounced) {
-        this.onBounce();
-      }
-    } else {
-      if (this.y >= floorY) {
-        this.y = floorY;
-        this.vy = this.vy * BOUNCE_ELASTICITY;
-        if (Math.abs(this.vy) < 0.4) {
-          this.vy = 0;
-        }
-        this.vx *= FLOOR_FRICTION;
-      }
-
-      let bounced = false;
-      if (this.x <= 0) {
-        this.x = 0;
-        this.vx = -this.vx * 0.4;
-        bounced = true;
-      } else if (this.x + this.width >= screenWidth) {
-        this.x = screenWidth - this.width;
-        this.vx = -this.vx * 0.4;
-        bounced = true;
-      }
-
-      if (this.y <= 0) {
-        this.y = 0;
-        this.vy = -this.vy * 0.4;
-        bounced = true;
-      }
-
-      if (bounced) {
-        this.onBounce();
+    // Animate hop offset (pseudo-gravity in place)
+    if (this.hopOffset < 0 || this.hopVelocity !== 0) {
+      this.hopOffset += this.hopVelocity;
+      this.hopVelocity += 0.5;
+      if (this.hopOffset >= 0) {
+        this.hopOffset = 0;
+        this.hopVelocity = 0;
       }
     }
-
-    // Adjust look vector
-    if (Math.abs(this.vx) > 0.15 && !this.isDragging && !hasKeyInput) {
-      this.facing = this.vx > 0 ? "right" : "left";
-    }
-
-    // Scale animation
-    const targetScale = this.state === "stretch" ? 2.5 : 1.0;
-    this.scaleFactor += (targetScale - this.scaleFactor) * 0.05;
 
     // Eye look-at tracking (target is relative to pet head center)
     let targetEyeX = 0;
@@ -484,50 +271,20 @@ class DesktopPet {
       }
     }
 
+    // Adjust facing direction based on cursor position when active
+    if (mouseIdleTicks < 300 && this.state !== "sleep") {
+      const dx = mouseX - (this.x + this.width / 2);
+      if (Math.abs(dx) > 10) {
+        this.facing = dx > 0 ? "right" : "left";
+      }
+    }
+
+    // Scale animation (stretch timer)
+    const targetScale = this.state === "stretch" ? 2.5 : 1.0;
+    this.scaleFactor += (targetScale - this.scaleFactor) * 0.05;
+
     this.keepInBounds();
     this.updateAnimationFrame();
-  }
-
-  handleAutoBehavior() {
-    this.behaviorTimer--;
-
-    if (this.behaviorTimer <= 0) {
-      const rand = Math.random();
-      if (rand < 0.35) {
-        this.state = "idle";
-        this.vx = 0;
-        this.walkTargetX = null;
-        this.behaviorTimer = 120 + Math.random() * 180;
-      } else if (rand < 0.7) {
-        this.state = "walk";
-        this.walkTargetX = Math.random() * (screenWidth - this.width);
-        this.behaviorTimer = 300;
-      } else if (rand < 0.85) {
-        this.state = "run";
-        this.walkTargetX = Math.random() * (screenWidth - this.width);
-        this.behaviorTimer = 200;
-      } else {
-        this.state = "sleep";
-        this.vx = 0;
-        this.walkTargetX = null;
-        this.behaviorTimer = 240 + Math.random() * 300;
-      }
-    }
-
-    if (this.walkTargetX !== null) {
-      const dist = this.walkTargetX - this.x;
-      const direction = Math.sign(dist);
-      const speed = this.state === "run" ? 2.2 : 1.2;
-
-      this.vx = direction * speed;
-
-      if (Math.abs(dist) < 5) {
-        this.vx = 0;
-        this.walkTargetX = null;
-        this.state = "idle";
-        this.behaviorTimer = 60 + Math.random() * 60;
-      }
-    }
   }
 
   updateAnimationFrame() {
@@ -557,46 +314,7 @@ class DesktopPet {
       py <= this.y + this.height
     );
   }
-
-  toggleAntiGravity() {
-    this.isAntiGravity = !this.isAntiGravity;
-
-    if (this.isAntiGravity) {
-      this.vx = (Math.random() > 0.5 ? 1 : -1) * ANTIGRAVITY_FLOAT_SPEED;
-      this.vy = (Math.random() > 0.5 ? -0.8 : -1.5) * ANTIGRAVITY_FLOAT_SPEED;
-      this.state = "float";
-    } else {
-      this.vx = 0;
-      this.vy = 0;
-      this.state = "idle";
-    }
-
-    if (window.electronAPI && window.electronAPI.sendDashboardUpdate) {
-      window.electronAPI.sendDashboardUpdate({
-        type: "gravity-toggled",
-        value: this.isAntiGravity,
-      });
-    }
-  }
-
-  onBounce() {
-    if (currentSkin === "logo-dvd") {
-      const colors = [
-        "#ec4899", // Pink
-        "#3b82f6", // Blue
-        "#10b981", // Green
-        "#f59e0b", // Amber/Yellow
-        "#8b5cf6", // Purple
-        "#ef4444", // Red
-        "#06b6d4", // Cyan
-      ];
-      let nextColor = colors[Math.floor(Math.random() * colors.length)];
-      while (nextColor === this.dvdColor) {
-        nextColor = colors[Math.floor(Math.random() * colors.length)];
-      }
-      this.dvdColor = nextColor;
-    }
-  }
+  // Locomotion bounce and gravity toggle helpers removed for pinned mode
 
   draw(ctx, skinFilter) {
     ctx.save();
@@ -622,8 +340,8 @@ class DesktopPet {
         Math.min(Math.abs(this.vx) * 0.018, 0.22);
     }
 
-    // Align rendering translation to bottom-center of pet
-    ctx.translate(this.x + this.width / 2, this.y + this.height);
+    // Align rendering translation to bottom-center of pet including hopOffset
+    ctx.translate(this.x + this.width / 2, this.y + this.height + this.hopOffset);
 
     if (this.scaleFactor !== 1.0) {
       ctx.scale(this.scaleFactor, this.scaleFactor);
@@ -850,7 +568,7 @@ const pet = new DesktopPet();
 // ==========================================
 function drawSpritesheetEyes(ctx, pet, s) {
   // If sleeping or alarm, eyes are closed or rings are active, so don't draw open eyes
-  if (pet.state === "sleep" || pet.state === "alarm" || pet.state === "float") return;
+  if (pet.state === "sleep" || pet.state === "alarm") return;
 
   ctx.save();
   if (pet.facing === "left") {
@@ -921,12 +639,6 @@ function drawLogo(ctx, logoStyle, pet, s) {
   ctx.save();
   const w = pet.width;
   const h = pet.height;
-  
-  if (pet.state === "float") {
-    ctx.translate(w / 2, h / 2);
-    ctx.rotate((Date.now() * 0.003) % (Math.PI * 2));
-    ctx.translate(-w / 2, -h / 2);
-  }
   
   // Base Glow effect (Rich Aesthetics)
   ctx.shadowBlur = 10 * s;
@@ -1417,17 +1129,14 @@ window.addEventListener("mousedown", (e) => {
 window.addEventListener("mouseup", () => {
   if (pet.isDragging) {
     pet.isDragging = false;
-    pet.state = pet.isAntiGravity ? "float" : "idle";
-    // Clamp throw velocity to avoid extreme speeds
-    const maxThrowSpeed = 25;
-    pet.vx = Math.max(-maxThrowSpeed, Math.min(pet.vx, maxThrowSpeed));
-    pet.vy = Math.max(-maxThrowSpeed, Math.min(pet.vy, maxThrowSpeed));
+    pet.state = "idle";
   }
 });
 
 window.addEventListener("dblclick", (e) => {
   if (pet.containsPoint(e.clientX, e.clientY)) {
-    pet.toggleAntiGravity();
+    // Hop in place on double click
+    pet.hopVelocity = -8;
   }
 });
 
@@ -1467,31 +1176,10 @@ let alarmResetTimeout = null;
 if (window.electronAPI && window.electronAPI.onPetControl) {
   window.electronAPI.onPetControl((data) => {
     switch (data.type) {
-      case "toggle-gravity":
-        pet.isAntiGravity = data.value;
-        if (pet.isAntiGravity) {
-          pet.vx = (Math.random() > 0.5 ? 1 : -1) * ANTIGRAVITY_FLOAT_SPEED;
-          pet.vy =
-            (Math.random() > 0.5 ? -0.8 : -1.5) * ANTIGRAVITY_FLOAT_SPEED;
-          pet.state = "float";
-        } else {
-          pet.vx = 0;
-          pet.vy = 0;
-          pet.state = "idle";
-        }
-        break;
       case "set-action":
         currentAction = data.value;
         if (currentAction !== "auto") {
           pet.state = currentAction;
-          if (
-            currentAction === "idle" ||
-            currentAction === "sleep" ||
-            currentAction === "stretch"
-          ) {
-            pet.vx = 0;
-            pet.vy = 0;
-          }
         }
         break;
       case "set-skin":
@@ -1507,8 +1195,6 @@ if (window.electronAPI && window.electronAPI.onPetControl) {
         typingHeat = Math.min(typingHeat + 14, 100);
         if (pet.state !== "knead" && pet.state !== "sleep") {
           pet.state = "knead";
-          pet.vx = 0;
-          pet.vy = 0;
         }
         lastKeystrokeTime = Date.now();
         const nChar = codeChars[Math.floor(Math.random() * codeChars.length)];
@@ -1528,7 +1214,7 @@ if (window.electronAPI && window.electronAPI.onPetControl) {
         currentTimerText = data.text;
         break;
       case "pet-hop":
-        pet.vy = -12;
+        pet.hopVelocity = -8; // start hop in place
         break;
       case "set-alarm":
         activeReminder = {

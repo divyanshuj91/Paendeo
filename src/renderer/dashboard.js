@@ -28,29 +28,9 @@ document.getElementById("action-select").addEventListener("change", (e) => {
   window.electronAPI.sendPetControl({ type: "set-action", value: e.target.value });
 });
 
-// Gravity toggle
-let isAntiGravity = false;
-const gravityBtn = document.getElementById("toggle-gravity");
-
-gravityBtn.addEventListener("click", () => {
-  isAntiGravity = !isAntiGravity;
-  updateGravityUI();
-  window.electronAPI.sendPetControl({ type: "toggle-gravity", value: isAntiGravity });
-});
-
-function updateGravityUI() {
-  gravityBtn.textContent = isAntiGravity ? "Anti-Gravity" : "Gravity Mode";
-  gravityBtn.style.background = isAntiGravity
-    ? "linear-gradient(135deg, #ec4899 0%, #be185d 100%)"
-    : "linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)";
-}
-
 // Receive dashboard updates from pet
 window.electronAPI.onDashboardUpdate((data) => {
-  if (data.type === "gravity-toggled") {
-    isAntiGravity = data.value;
-    updateGravityUI();
-  } else if (data.type === "alarm-finished") {
+  if (data.type === "alarm-finished") {
     document.getElementById("alarm-btn").textContent = "Set Alarm";
     document.getElementById("alarm-btn").classList.remove("timer-running");
     activeReminder = null;
