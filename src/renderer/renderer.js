@@ -112,23 +112,36 @@ function showGreetingBubble(text, durationMs) {
 const particles = [];
 
 class Particle {
-  constructor(x, y, type) {
+  constructor(x, y, type, char) {
     this.x = x;
     this.y = y;
-    this.type = type; // 'heart' or 'steam'
-    this.vx = (Math.random() - 0.5) * 1.5;
+    this.type = type; // 'heart', 'steam', or 'code'
+    this.char = char || "";
+    this.vx = type === "code" ? (Math.random() - 0.5) * 2.5 : (Math.random() - 0.5) * 1.5;
     this.vy =
-      type === "heart"
-        ? -1.2 - Math.random() * 1.2
-        : -0.8 - Math.random() * 0.8;
-    this.life = 60 + Math.random() * 40;
+      type === "code"
+        ? -2.0 - Math.random() * 2.5
+        : (type === "heart"
+          ? -1.2 - Math.random() * 1.2
+          : -0.8 - Math.random() * 0.8);
+    this.life = type === "code" ? 40 + Math.random() * 20 : 60 + Math.random() * 40;
     this.maxLife = this.life;
-    this.size = type === "heart" ? 12 : 3 + Math.random() * 4;
+    this.size =
+      type === "code"
+        ? 8 + Math.random() * 6
+        : (type === "heart" ? 12 : 3 + Math.random() * 4);
+    
+    const colors = ["#818cf8", "#6366f1", "#4f46e5", "#38bdf8", "#06b6d4", "#a78bfa", "#f43f5e", "#10b981"];
+    this.color = colors[Math.floor(Math.random() * colors.length)];
   }
 
   update() {
     this.x += this.vx;
     this.y += this.vy;
+    if (this.type === "code") {
+      this.vy += 0.05; // slight deceleration
+      this.vx *= 0.98; // horizontal drag
+    }
     this.life--;
   }
 
@@ -139,6 +152,13 @@ class Particle {
       ctx.globalAlpha = alpha;
       ctx.font = `${this.size}px Outfit, sans-serif`;
       ctx.fillText("❤️", this.x - this.size / 2, this.y);
+    } else if (this.type === "code") {
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = this.color;
+      ctx.shadowColor = this.color;
+      ctx.shadowBlur = 4;
+      ctx.font = `bold ${this.size}px monospace`;
+      ctx.fillText(this.char, this.x, this.y);
     } else {
       ctx.fillStyle = `rgba(226, 232, 240, ${alpha * 0.8})`;
       ctx.beginPath();
@@ -182,6 +202,11 @@ class DesktopPet {
     this.dragOffsetY = 0;
     this.prevMouseX = 0;
     this.prevMouseY = 0;
+
+    // Blinking & color states
+    this.blinkTimer = 200 + Math.random() * 150;
+    this.isBlinking = false;
+    this.dvdColor = "#ec4899"; // Initial DVD color (magenta)
   }
 
   update(mouseX, mouseY) {
@@ -274,10 +299,17 @@ class DesktopPet {
         if (currentSpeed < 1.0) {
           this.vx = (Math.random() > 0.5 ? 1 : -1) * ANTIGRAVITY_FLOAT_SPEED;
           this.vy = (Math.random() > 0.5 ? 1 : -1) * ANTIGRAVITY_FLOAT_SPEED;
+        } else if (currentSpeed > ANTIGRAVITY_FLOAT_SPEED) {
+          // Slowly dampen velocity back to float speed if thrown
+          this.vx *= 0.98;
+          this.vy *= 0.98;
         }
       } else {
         // Gravity mode
         this.vy += GRAVITY;
+        if (!isOnFloor) {
+          this.vx *= AIR_RESISTANCE;
+        }
         this.x += this.vx;
         this.y += this.vy;
 
@@ -352,22 +384,31 @@ class DesktopPet {
 
     // 4. Bouncing off screen bounds
     if (this.isAntiGravity) {
+      let bounced = false;
       if (this.x <= 0) {
         this.x = 0;
         this.vx = -this.vx;
         this.facing = "right";
+        bounced = true;
       } else if (this.x + this.width >= screenWidth) {
         this.x = screenWidth - this.width;
         this.vx = -this.vx;
         this.facing = "left";
+        bounced = true;
       }
 
       if (this.y <= 0) {
         this.y = 0;
         this.vy = -this.vy;
+        bounced = true;
       } else if (this.y + this.height >= screenHeight) {
         this.y = screenHeight - this.height;
         this.vy = -this.vy;
+        bounced = true;
+      }
+
+      if (bounced) {
+        this.onBounce();
       }
     } else {
       if (this.y >= floorY) {
@@ -379,17 +420,25 @@ class DesktopPet {
         this.vx *= FLOOR_FRICTION;
       }
 
+      let bounced = false;
       if (this.x <= 0) {
         this.x = 0;
         this.vx = -this.vx * 0.4;
+        bounced = true;
       } else if (this.x + this.width >= screenWidth) {
         this.x = screenWidth - this.width;
         this.vx = -this.vx * 0.4;
+        bounced = true;
       }
 
       if (this.y <= 0) {
         this.y = 0;
         this.vy = -this.vy * 0.4;
+        bounced = true;
+      }
+
+      if (bounced) {
+        this.onBounce();
       }
     }
 
@@ -401,6 +450,39 @@ class DesktopPet {
     // Scale animation
     const targetScale = this.state === "stretch" ? 2.5 : 1.0;
     this.scaleFactor += (targetScale - this.scaleFactor) * 0.05;
+
+    // Eye look-at tracking (target is relative to pet head center)
+    let targetEyeX = 0;
+    let targetEyeY = 0;
+    if (mouseIdleTicks < 300) {
+      const dx = mouseX - (this.x + this.width / 2);
+      const dy = mouseY - (this.y + this.height * 0.3);
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 10) {
+        targetEyeX = (dx / dist) * 3.5;
+        targetEyeY = (dy / dist) * 2.5;
+      }
+    }
+
+    // Flip horizontal eye offset if facing left
+    if (this.facing === "left") {
+      targetEyeX = -targetEyeX;
+    }
+
+    this.eyeX += (targetEyeX - this.eyeX) * 0.15;
+    this.eyeY += (targetEyeY - this.eyeY) * 0.15;
+
+    // Blinking logic
+    this.blinkTimer--;
+    if (this.blinkTimer <= 0) {
+      if (this.blinkTimer === 0) {
+        this.isBlinking = true;
+      }
+      if (this.blinkTimer < -6) {
+        this.isBlinking = false;
+        this.blinkTimer = 200 + Math.random() * 200;
+      }
+    }
 
     this.keepInBounds();
     this.updateAnimationFrame();
@@ -497,10 +579,29 @@ class DesktopPet {
     }
   }
 
+  onBounce() {
+    if (currentSkin === "logo-dvd") {
+      const colors = [
+        "#ec4899", // Pink
+        "#3b82f6", // Blue
+        "#10b981", // Green
+        "#f59e0b", // Amber/Yellow
+        "#8b5cf6", // Purple
+        "#ef4444", // Red
+        "#06b6d4", // Cyan
+      ];
+      let nextColor = colors[Math.floor(Math.random() * colors.length)];
+      while (nextColor === this.dvdColor) {
+        nextColor = colors[Math.floor(Math.random() * colors.length)];
+      }
+      this.dvdColor = nextColor;
+    }
+  }
+
   draw(ctx, skinFilter) {
     ctx.save();
 
-    ctx.filter = skinFilter || "none";
+    ctx.filter = currentSkin.startsWith("logo-") ? "none" : (skinFilter || "none");
 
     // Wobble Kneading Animation
     let kneadAngle = 0;
@@ -540,60 +641,99 @@ class DesktopPet {
 
     ctx.translate(-this.width / 2, -this.height);
 
-    // Eye tracking interpolation
-    let targetEyeX = 0;
-    let targetEyeY = 0;
-    let isBlinking = false;
     let headTilt = 0;
+    const isBlinking = this.isBlinking;
 
-    this.eyeX += (targetEyeX - this.eyeX) * 0.15;
-    this.eyeY += (targetEyeY - this.eyeY) * 0.15;
-
-    if (isSpriteSheetLoaded && spriteSheetImage) {
-      const animConfig =
-        SPRITE_CONFIG.animations[this.state] || SPRITE_CONFIG.animations.idle;
-      const row = animConfig.row;
-      const col = this.animFrameIndex;
-
-      const sx = col * SPRITE_CONFIG.frameWidth;
-      const sy = row * SPRITE_CONFIG.frameHeight;
-
-      ctx.save();
-      if (this.facing === "left") {
-        ctx.translate(this.width, 0);
-        ctx.scale(-1, 1);
-      }
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(
-        spriteSheetImage,
-        sx,
-        sy,
-        SPRITE_CONFIG.frameWidth,
-        SPRITE_CONFIG.frameHeight,
-        0,
-        0,
-        this.width,
-        this.height,
-      );
-      ctx.restore();
+    if (currentSkin.startsWith("logo-")) {
+      const s = this.width / 64;
+      drawLogo(ctx, currentSkin, this, s);
     } else {
-      // Fallback Vector Drawing
-      drawFallbackPanda(
-        ctx,
-        0,
-        0,
-        this.width,
-        this.height,
-        this.state,
-        this.facing,
-        this.animFrameIndex + this.animTick,
-        false,
-        this.eyeX,
-        this.eyeY,
-        isBlinking,
-        headTilt,
-        typingHeat,
-      );
+      const s = this.width / 64;
+      if (isSpriteSheetLoaded && spriteSheetImage) {
+        const animConfig =
+          SPRITE_CONFIG.animations[this.state] || SPRITE_CONFIG.animations.idle;
+        const row = animConfig.row;
+        const col = this.animFrameIndex;
+
+        const sx = col * SPRITE_CONFIG.frameWidth;
+        const sy = row * SPRITE_CONFIG.frameHeight;
+
+        ctx.save();
+        if (this.facing === "left") {
+          ctx.translate(this.width, 0);
+          ctx.scale(-1, 1);
+        }
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(
+          spriteSheetImage,
+          sx,
+          sy,
+          SPRITE_CONFIG.frameWidth,
+          SPRITE_CONFIG.frameHeight,
+          0,
+          0,
+          this.width,
+          this.height,
+        );
+        ctx.restore();
+
+        // Draw spritesheet eyes overlay so the eyes follow the cursor
+        drawSpritesheetEyes(ctx, this, s);
+      } else {
+        // Fallback Vector Drawing
+        drawFallbackPanda(
+          ctx,
+          0,
+          0,
+          this.width,
+          this.height,
+          this.state,
+          this.facing,
+          this.animFrameIndex + this.animTick,
+          false,
+          this.eyeX,
+          this.eyeY,
+          isBlinking,
+          headTilt,
+          typingHeat,
+        );
+      }
+
+      // Draw cheeks blush overlay on standard panda if petted / sleeping
+      const isPandaBlushing = pettingMeter > 4 || this.state === "sleep";
+      if (isPandaBlushing) {
+        ctx.save();
+        if (this.facing === "left") {
+          ctx.translate(this.width, 0);
+          ctx.scale(-1, 1);
+        }
+        ctx.fillStyle = "rgba(244, 63, 94, 0.35)"; // Soft rose blush
+        ctx.beginPath();
+        ctx.arc(23 * s, 23 * s, 4 * s, 0, Math.PI * 2);
+        ctx.arc(41 * s, 23 * s, 4 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Draw overheat sweat teardrop on forehead if typing heat is high
+      if (typingHeat > 120) {
+        ctx.save();
+        if (this.facing === "left") {
+          ctx.translate(this.width, 0);
+          ctx.scale(-1, 1);
+        }
+        ctx.fillStyle = "#38bdf8"; // Light blue sweat drop
+        const sx = 20 * s;
+        const sy = 10 * s + Math.sin(Date.now() * 0.01) * 2 * s;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.quadraticCurveTo(sx - 2 * s, sy + 4 * s, sx, sy + 4 * s);
+        ctx.arc(sx, sy + 4 * s, 2 * s, 0, Math.PI);
+        ctx.quadraticCurveTo(sx + 2 * s, sy + 4 * s, sx, sy);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
     }
 
     // Draw Universal Keyboard if typing
@@ -616,17 +756,34 @@ class DesktopPet {
         rightDown = Math.sin(Date.now() * 0.04 + Math.PI) > 0;
       }
 
-      ctx.fillStyle = "#1e293b"; // Dark grey chassis (B/W)
+      // Keyboard base / chassis with RGB underglow
+      ctx.save();
+      ctx.shadowBlur = 8 * s;
+      const neonHue = (Date.now() * 0.2) % 360;
+      ctx.shadowColor = `hsla(${neonHue}, 80%, 60%, 0.65)`;
+      
+      ctx.fillStyle = "#1e1e2e"; // Premium dark bezel
       ctx.beginPath();
       if (ctx.roundRect) {
-        ctx.roundRect(2 * s, 42 * s + bY, 60 * s, 14 * s, 2 * s);
+        ctx.roundRect(2 * s, 42 * s + bY, 60 * s, 14 * s, 3 * s);
       } else {
         ctx.fillRect(2 * s, 42 * s + bY, 60 * s, 14 * s);
       }
       ctx.fill();
+      
+      ctx.strokeStyle = `hsla(${neonHue}, 70%, 50%, 0.8)`;
+      ctx.lineWidth = 1 * s;
+      ctx.stroke();
+      ctx.restore();
 
-      const key1Down = leftDown ? 1 * s : 0;
-      ctx.fillStyle = leftDown ? "#94a3b8" : "#f8fafc"; // Grey when pressed, white otherwise
+      // Keycap 1 (Left hand)
+      const key1Down = leftDown ? 1.5 * s : 0;
+      ctx.save();
+      ctx.shadowBlur = leftDown ? 6 * s : 0;
+      ctx.shadowColor = "#38bdf8"; // cyan glow
+      ctx.fillStyle = leftDown ? "#38bdf8" : "#2e3047";
+      ctx.strokeStyle = leftDown ? "#0284c7" : "#434664";
+      ctx.lineWidth = 1 * s;
       ctx.beginPath();
       if (ctx.roundRect) {
         ctx.roundRect(6 * s, 40 * s + bY + key1Down, 22 * s, 10 * s, 2 * s);
@@ -634,9 +791,17 @@ class DesktopPet {
         ctx.fillRect(6 * s, 40 * s + bY + key1Down, 22 * s, 10 * s);
       }
       ctx.fill();
+      ctx.stroke();
+      ctx.restore();
 
-      const key2Down = rightDown ? 1 * s : 0;
-      ctx.fillStyle = rightDown ? "#94a3b8" : "#f8fafc";
+      // Keycap 2 (Right hand)
+      const key2Down = rightDown ? 1.5 * s : 0;
+      ctx.save();
+      ctx.shadowBlur = rightDown ? 6 * s : 0;
+      ctx.shadowColor = "#ec4899"; // pink glow
+      ctx.fillStyle = rightDown ? "#ec4899" : "#2e3047";
+      ctx.strokeStyle = rightDown ? "#be185d" : "#434664";
+      ctx.lineWidth = 1 * s;
       ctx.beginPath();
       if (ctx.roundRect) {
         ctx.roundRect(36 * s, 40 * s + bY + key2Down, 22 * s, 10 * s, 2 * s);
@@ -644,6 +809,8 @@ class DesktopPet {
         ctx.fillRect(36 * s, 40 * s + bY + key2Down, 22 * s, 10 * s);
       }
       ctx.fill();
+      ctx.stroke();
+      ctx.restore();
     }
 
     // Draw Alarm Rings
@@ -677,6 +844,280 @@ class DesktopPet {
 }
 
 const pet = new DesktopPet();
+
+// ==========================================
+// SPRITESHEET EYES OVERLAY RENDERER
+// ==========================================
+function drawSpritesheetEyes(ctx, pet, s) {
+  // If sleeping or alarm, eyes are closed or rings are active, so don't draw open eyes
+  if (pet.state === "sleep" || pet.state === "alarm" || pet.state === "float") return;
+
+  ctx.save();
+  if (pet.facing === "left") {
+    ctx.translate(pet.width, 0);
+    ctx.scale(-1, 1);
+  }
+
+  // Head bobbing offsets based on state and frame
+  let ox = 0;
+  let oy = 0;
+  const frame = pet.animFrameIndex;
+
+  if (pet.state === "idle") {
+    // breathing bob
+    oy = [0, 0, 0.5, 1, 1, 1, 0.5, 0][frame] || 0;
+  } else if (pet.state === "walk" || pet.state === "knead") {
+    oy = [0, 0.5, 1, 0.5, 0, -0.5, -1, -0.5][frame] || 0;
+  } else if (pet.state === "run") {
+    oy = [0.5, 1, 0.5, 0, 0.5, 1, 0.5, 0][frame] || 0;
+    ox = [0, 0.5, 1, 0.5, 0, -0.5, -1, -0.5][frame] || 0;
+  }
+
+  const lx = (34.8 + ox) * s;
+  const rx = (45.2 + ox) * s;
+  const ey = (20.5 + oy) * s;
+
+  // 1. Black out the static white eyes of the sprite sheet using the eye patch color
+  ctx.fillStyle = "#202020";
+  ctx.beginPath();
+  ctx.arc(lx, ey, 2.5 * s, 0, Math.PI * 2);
+  ctx.arc(rx, ey, 2.5 * s, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. Draw the new white eyeball slightly offset by eyeX/eyeY
+  const isBlinking = pet.isBlinking;
+  const squint = pet.state === "knead" || pet.state === "stretch";
+
+  ctx.fillStyle = "#ffffff";
+  const eyeLookX = pet.eyeX * 0.35;
+  const eyeLookY = pet.eyeY * 0.35;
+
+  if (isBlinking || squint) {
+    // Draw closed/squinting eyes (lines)
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.2 * s;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(lx - 2 * s, ey);
+    ctx.lineTo(lx + 2 * s, ey);
+    ctx.moveTo(rx - 2 * s, ey);
+    ctx.lineTo(rx + 2 * s, ey);
+    ctx.stroke();
+  } else {
+    // Draw eyeballs
+    ctx.beginPath();
+    ctx.arc(lx + eyeLookX, ey + eyeLookY, 1.4 * s, 0, Math.PI * 2);
+    ctx.arc(rx + eyeLookX, ey + eyeLookY, 1.4 * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+// ==========================================
+// LOGO VECTOR RENDERER
+// ==========================================
+function drawLogo(ctx, logoStyle, pet, s) {
+  ctx.save();
+  const w = pet.width;
+  const h = pet.height;
+  
+  if (pet.state === "float") {
+    ctx.translate(w / 2, h / 2);
+    ctx.rotate((Date.now() * 0.003) % (Math.PI * 2));
+    ctx.translate(-w / 2, -h / 2);
+  }
+  
+  // Base Glow effect (Rich Aesthetics)
+  ctx.shadowBlur = 10 * s;
+  
+  if (logoStyle === "logo-dvd") {
+    ctx.fillStyle = pet.dvdColor;
+    ctx.shadowColor = pet.dvdColor;
+    
+    // Draw DVD pill background (oval ellipse)
+    ctx.beginPath();
+    ctx.ellipse(w / 2, h / 2 + 10 * s, 25 * s, 8 * s, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = pet.dvdColor;
+    ctx.lineWidth = 1.8 * s;
+    ctx.stroke();
+    
+    // Draw "DVD" text
+    ctx.font = `italic bold ${16 * s}px Arial, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("DVD", w / 2, h / 2 - 4 * s);
+    
+    // Draw "VIDEO" text inside the pill
+    ctx.font = `bold ${5 * s}px Arial, sans-serif`;
+    ctx.fillText("VIDEO", w / 2, h / 2 + 10 * s);
+    
+  } else if (logoStyle === "logo-gemini") {
+    const grad = ctx.createLinearGradient(0, 0, w, h);
+    grad.addColorStop(0, "#38bdf8"); // Sky blue
+    grad.addColorStop(0.3, "#818cf8"); // Indigo
+    grad.addColorStop(0.7, "#ec4899"); // Pink
+    grad.addColorStop(1, "#f59e0b"); // Amber
+    
+    ctx.fillStyle = grad;
+    ctx.shadowColor = "rgba(236, 72, 153, 0.6)";
+    
+    // Draw 4-pointed sparkle
+    const cx = w / 2;
+    const cy = h / 2;
+    const size = 22 * s;
+    
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - size);
+    ctx.quadraticCurveTo(cx, cy, cx + size, cy);
+    ctx.quadraticCurveTo(cx, cy, cx, cy + size);
+    ctx.quadraticCurveTo(cx, cy, cx - size, cy);
+    ctx.quadraticCurveTo(cx, cy, cx, cy - size);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Draw a smaller secondary sparkle
+    ctx.fillStyle = "#ffffff";
+    const scx = cx + 12 * s;
+    const scy = cy - 12 * s;
+    const ssize = 8 * s;
+    ctx.beginPath();
+    ctx.moveTo(scx, scy - ssize);
+    ctx.quadraticCurveTo(scx, scy, scx + ssize, scy);
+    ctx.quadraticCurveTo(scx, scy, scx, scy + ssize);
+    ctx.quadraticCurveTo(scx, scy, scx - ssize, scy);
+    ctx.quadraticCurveTo(scx, scy, scx, scy - ssize);
+    ctx.closePath();
+    ctx.fill();
+    
+  } else if (logoStyle === "logo-electron") {
+    const cx = w / 2;
+    const cy = h / 2;
+    
+    // Central Nucleus
+    ctx.fillStyle = "#61dafb"; // Electron cyan
+    ctx.shadowColor = "#61dafb";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 6 * s, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 3 Orbit Ellipses
+    ctx.strokeStyle = "rgba(97, 218, 251, 0.45)";
+    ctx.lineWidth = 1 * s;
+    
+    const orbits = [0, Math.PI / 3, -Math.PI / 3];
+    // Orbit faster if petted or typing
+    const speedMultiplier = pet.state === "knead" ? 0.015 : (pettingMeter > 4 ? 0.008 : 0.003);
+    const orbitTime = Date.now() * speedMultiplier;
+    
+    orbits.forEach((angle, idx) => {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+      
+      // Draw ellipse path
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 24 * s, 8 * s, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Draw orbiting electron dot
+      const eTime = orbitTime + idx * (Math.PI * 2 / 3);
+      const ex = 24 * s * Math.cos(eTime);
+      const ey = 8 * s * Math.sin(eTime);
+      
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowColor = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(ex, ey, 2.5 * s, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.restore();
+    });
+    
+  } else if (logoStyle === "logo-paendeo") {
+    const cx = w / 2;
+    const cy = h / 2;
+    
+    ctx.shadowColor = "rgba(165, 180, 252, 0.4)";
+    
+    // Ears
+    ctx.fillStyle = "#1e293b";
+    ctx.beginPath();
+    ctx.arc(cx - 15 * s, cy - 12 * s, 7 * s, 0, Math.PI * 2);
+    ctx.arc(cx + 15 * s, cy - 12 * s, 7 * s, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Face badge
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 18 * s, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.strokeStyle = "#6366f1";
+    ctx.lineWidth = 2 * s;
+    ctx.stroke();
+    
+    // Eye Patches
+    ctx.fillStyle = "#1e293b";
+    ctx.save();
+    ctx.translate(cx - 7 * s, cy - 1 * s);
+    ctx.rotate(Math.PI / 6);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 5 * s, 3.5 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    
+    ctx.save();
+    ctx.translate(cx + 7 * s, cy - 1 * s);
+    ctx.rotate(-Math.PI / 6);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 5 * s, 3.5 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    
+    // Eyes
+    ctx.fillStyle = "#ffffff";
+    const isBlushing = pettingMeter > 4 || pet.state === "sleep";
+    
+    if (isBlushing) {
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.2 * s;
+      ctx.lineCap = "round";
+      
+      ctx.beginPath();
+      ctx.arc(cx - 7 * s, cy, 2 * s, Math.PI, 0);
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.arc(cx + 7 * s, cy, 2 * s, Math.PI, 0);
+      ctx.stroke();
+    } else {
+      const eyeLookX = (pet.eyeX || 0) * 0.2;
+      const eyeLookY = (pet.eyeY || 0) * 0.2;
+      ctx.beginPath();
+      ctx.arc(cx - 7 * s + eyeLookX, cy - 1 * s + eyeLookY, 1.2 * s, 0, Math.PI * 2);
+      ctx.arc(cx + 7 * s + eyeLookX, cy - 1 * s + eyeLookY, 1.2 * s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    // Nose
+    ctx.fillStyle = "#0f172a";
+    ctx.beginPath();
+    ctx.arc(cx, cy + 4 * s, 1.8 * s, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Blush
+    if (isBlushing) {
+      ctx.fillStyle = "rgba(244, 63, 94, 0.4)";
+      ctx.beginPath();
+      ctx.arc(cx - 11 * s, cy + 5 * s, 3 * s, 0, Math.PI * 2);
+      ctx.arc(cx + 11 * s, cy + 5 * s, 3 * s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  
+  ctx.restore();
+}
 
 // ==========================================
 // FALLBACK VECTOR RENDERER
@@ -977,6 +1418,10 @@ window.addEventListener("mouseup", () => {
   if (pet.isDragging) {
     pet.isDragging = false;
     pet.state = pet.isAntiGravity ? "float" : "idle";
+    // Clamp throw velocity to avoid extreme speeds
+    const maxThrowSpeed = 25;
+    pet.vx = Math.max(-maxThrowSpeed, Math.min(pet.vx, maxThrowSpeed));
+    pet.vy = Math.max(-maxThrowSpeed, Math.min(pet.vy, maxThrowSpeed));
   }
 });
 
@@ -992,6 +1437,7 @@ window.addEventListener("dblclick", (e) => {
 let currentSkin = "classic";
 let currentUserName = "";
 let lastKeystrokeTime = 0;
+const codeChars = ["{", "}", "(", ")", ";", "<", ">", "/", "+", "=", "-", "*", "&", "|", "!", "[", "]", "0", "1", "a", "c", "x", "y", "z", "f", "p"];
 
 if (window.electronAPI && window.electronAPI.onGlobalKeydown) {
   window.electronAPI.onGlobalKeydown((e) => {
@@ -1002,6 +1448,16 @@ if (window.electronAPI && window.electronAPI.onGlobalKeydown) {
       pet.vx = 0;
       pet.vy = 0;
     }
+    // Spawn code character particle
+    const char = codeChars[Math.floor(Math.random() * codeChars.length)];
+    particles.push(
+      new Particle(
+        pet.x + pet.width / 2 + (Math.random() - 0.5) * 40,
+        pet.y + pet.height - 15,
+        "code",
+        char
+      )
+    );
   });
 }
 
@@ -1049,6 +1505,21 @@ if (window.electronAPI && window.electronAPI.onPetControl) {
         break;
       case "note-typing":
         typingHeat = Math.min(typingHeat + 14, 100);
+        if (pet.state !== "knead" && pet.state !== "sleep") {
+          pet.state = "knead";
+          pet.vx = 0;
+          pet.vy = 0;
+        }
+        lastKeystrokeTime = Date.now();
+        const nChar = codeChars[Math.floor(Math.random() * codeChars.length)];
+        particles.push(
+          new Particle(
+            pet.x + pet.width / 2 + (Math.random() - 0.5) * 40,
+            pet.y + pet.height - 15,
+            "code",
+            nChar
+          )
+        );
         break;
       case "show-greeting":
         showGreetingBubble(data.text, data.duration);
