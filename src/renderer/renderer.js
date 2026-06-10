@@ -21,9 +21,6 @@ const SPRITE_CONFIG = {
   },
 };
 
-// ==========================================
-// PHYSICS CONSTANTS (Removed for Pinned Mode)
-// ==========================================
 
 // ==========================================
 // INITIAL SETUP
@@ -171,6 +168,16 @@ class Particle {
 }
 
 // ==========================================
+// PARTICLE UTILS
+// ==========================================
+function spawnParticle(x, y, type, char) {
+  particles.push(new Particle(x, y, type, char));
+  if (particles.length > 50) {
+    particles.shift();
+  }
+}
+
+// ==========================================
 // DESKTOP PET CLASS
 // ==========================================
 class DesktopPet {
@@ -259,12 +266,10 @@ class DesktopPet {
     if (pettingMeter > 8) {
       this.state = "sleep";
       if (Math.random() < 0.08) {
-        particles.push(
-          new Particle(
-            this.x + this.width / 2 + (Math.random() - 0.5) * 10,
-            this.y + 10,
-            "heart"
-          )
+        spawnParticle(
+          this.x + this.width / 2 + (Math.random() - 0.5) * 10,
+          this.y + 10,
+          "heart"
         );
       }
     } else if (Date.now() - lastKeystrokeTime < 300) {
@@ -409,7 +414,7 @@ class DesktopPet {
       py <= this.y + this.height
     );
   }
-  // Locomotion bounce and gravity toggle helpers removed for pinned mode
+
 
   draw(ctx, skinFilter) {
     ctx.save();
@@ -1264,7 +1269,7 @@ function drawSnoozeBubble(ctx, pet) {
 }
 
 // ==========================================
-// SPEECH BUBBLE RENDERING SYSTEM (Feature 12, 13, 14, 15)
+// SPEECH BUBBLE RENDERING SYSTEM
 // ==========================================
 function drawSpeechBubble(ctx, pet, noteText, timerText, greetingText) {
   // Determine if we have anything to render in the bubble
@@ -1434,13 +1439,11 @@ if (window.electronAPI && window.electronAPI.onGlobalKeydown) {
     }
     // Spawn code character particle
     const char = codeChars[Math.floor(Math.random() * codeChars.length)];
-    particles.push(
-      new Particle(
-        pet.x + pet.width / 2 + (Math.random() - 0.5) * 40,
-        pet.y + pet.height - 15,
-        "code",
-        char
-      )
+    spawnParticle(
+      pet.x + pet.width / 2 + (Math.random() - 0.5) * 40,
+      pet.y + pet.height - 15,
+      "code",
+      char
     );
   });
 }
@@ -1473,13 +1476,11 @@ if (window.electronAPI && window.electronAPI.onPetControl) {
         }
         lastKeystrokeTime = Date.now();
         const nChar = codeChars[Math.floor(Math.random() * codeChars.length)];
-        particles.push(
-          new Particle(
-            pet.x + pet.width / 2 + (Math.random() - 0.5) * 40,
-            pet.y + pet.height - 15,
-            "code",
-            nChar
-          )
+        spawnParticle(
+          pet.x + pet.width / 2 + (Math.random() - 0.5) * 40,
+          pet.y + pet.height - 15,
+          "code",
+          nChar
         );
         break;
       case "show-greeting":
@@ -1511,9 +1512,20 @@ if (window.electronAPI && window.electronAPI.onPetControl) {
 
 
 // ==========================================
-// GAME LOOP
+// GAME LOOP (Capped at 30 FPS for major CPU/GPU & RAM savings)
 // ==========================================
-function gameLoop() {
+let lastFrameTime = 0;
+const fps = 30;
+const frameDelay = 1000 / fps;
+
+function gameLoop(timestamp) {
+  if (!timestamp) timestamp = performance.now();
+  const elapsed = timestamp - lastFrameTime;
+  if (elapsed < frameDelay) {
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+  lastFrameTime = timestamp - (elapsed % frameDelay);
   ctx.clearRect(0, 0, screenWidth, screenHeight);
 
   // Ticks and timers
@@ -1591,12 +1603,10 @@ function gameLoop() {
   // Steam particle emitter for typing Overheat Mode
   if (typingHeat > 150) {
     if (Math.random() < 0.15) {
-      particles.push(
-        new Particle(
-          pet.x + pet.width / 2 + (Math.random() - 0.5) * 20,
-          pet.y,
-          "steam",
-        ),
+      spawnParticle(
+        pet.x + pet.width / 2 + (Math.random() - 0.5) * 20,
+        pet.y,
+        "steam"
       );
     }
   }
@@ -1612,7 +1622,7 @@ function gameLoop() {
         : pet.x + 32 * s;
       const leafX = mouthX + (Math.random() - 0.5) * 8 * s;
       const leafY = pet.y + 26 * s + pet.hopOffset;
-      particles.push(new Particle(leafX, leafY, "leaf"));
+      spawnParticle(leafX, leafY, "leaf");
     }
   }
 
