@@ -93,21 +93,29 @@ class Particle {
   constructor(x, y, type, char) {
     this.x = x;
     this.y = y;
-    this.type = type; // 'heart', 'steam', or 'code'
+    this.type = type; // 'heart', 'steam', 'code', or 'leaf'
     this.char = char || "";
-    this.vx = type === "code" ? (Math.random() - 0.5) * 2.5 : (Math.random() - 0.5) * 1.5;
-    this.vy =
-      type === "code"
-        ? -2.0 - Math.random() * 2.5
-        : (type === "heart"
+    
+    if (type === "code") {
+      this.vx = (Math.random() - 0.5) * 2.5;
+      this.vy = -2.0 - Math.random() * 2.5;
+      this.life = 40 + Math.random() * 20;
+      this.size = 8 + Math.random() * 6;
+    } else if (type === "leaf") {
+      this.vx = (Math.random() - 0.5) * 1.5;
+      this.vy = 0.4 + Math.random() * 0.8; // falls down slowly
+      this.life = 50 + Math.random() * 30;
+      this.size = 5 + Math.random() * 3;
+    } else {
+      this.vx = (Math.random() - 0.5) * 1.5;
+      this.vy =
+        type === "heart"
           ? -1.2 - Math.random() * 1.2
-          : -0.8 - Math.random() * 0.8);
-    this.life = type === "code" ? 40 + Math.random() * 20 : 60 + Math.random() * 40;
+          : -0.8 - Math.random() * 0.8;
+      this.life = 60 + Math.random() * 40;
+      this.size = type === "heart" ? 12 : 3 + Math.random() * 4;
+    }
     this.maxLife = this.life;
-    this.size =
-      type === "code"
-        ? 8 + Math.random() * 6
-        : (type === "heart" ? 12 : 3 + Math.random() * 4);
     
     const colors = ["#818cf8", "#6366f1", "#4f46e5", "#38bdf8", "#06b6d4", "#a78bfa", "#f43f5e", "#10b981"];
     this.color = colors[Math.floor(Math.random() * colors.length)];
@@ -119,6 +127,10 @@ class Particle {
     if (this.type === "code") {
       this.vy += 0.05; // slight deceleration
       this.vx *= 0.98; // horizontal drag
+    } else if (this.type === "leaf") {
+      // Leaf flutter effect (wind sway)
+      this.vx += Math.sin(Date.now() * 0.03 + this.life) * 0.08;
+      this.vx *= 0.98;
     }
     this.life--;
   }
@@ -137,6 +149,17 @@ class Particle {
       ctx.shadowBlur = 4;
       ctx.font = `bold ${this.size}px monospace`;
       ctx.fillText(this.char, this.x, this.y);
+    } else if (this.type === "leaf") {
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = "#22c55e"; // Vibrant green
+      ctx.strokeStyle = "#15803d"; // Dark green border
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      // Draw a rotated leaf shape using ellipse
+      const rotationAngle = Math.PI / 4 + Math.sin(Date.now() * 0.02 + this.life) * 0.3;
+      ctx.ellipse(this.x, this.y, this.size, this.size * 0.5, rotationAngle, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
     } else {
       ctx.fillStyle = `rgba(226, 232, 240, ${alpha * 0.8})`;
       ctx.beginPath();
@@ -161,6 +184,10 @@ class DesktopPet {
     this.eyeX = 0;
     this.eyeY = 0;
     this.scaleFactor = 1.0;
+
+    this.anchorX = this.x;
+    this.anchorY = this.y;
+    this.afkSleepActive = false;
 
     this.state = "idle"; // 'idle', 'walk', 'run', 'float', 'sleep', 'drag', 'knead', 'stretch', 'alarm'
     this.facing = "right"; // 'left', 'right'
@@ -208,6 +235,26 @@ class DesktopPet {
       return;
     }
 
+    // 2. AFK Auto-Sleep detection
+    const isAFK = (mouseIdleTicks > 1800) && (Date.now() - lastKeystrokeTime > 30000);
+    if (isAFK) {
+      if (!this.afkSleepActive && this.state !== "drag" && this.state !== "alarm") {
+        this.afkSleepActive = true;
+        this.state = "sleep";
+      }
+    } else {
+      if (this.afkSleepActive) {
+        this.afkSleepActive = false;
+        this.state = currentAction === "auto" ? "idle" : currentAction;
+      }
+    }
+
+    if (this.afkSleepActive) {
+      this.keepInBounds();
+      this.updateAnimationFrame();
+      return;
+    }
+
     // React to petting
     if (pettingMeter > 8) {
       this.state = "sleep";
@@ -224,8 +271,56 @@ class DesktopPet {
       // React to typing / kneading
       this.state = "knead";
     } else {
-      // Follow the dropdown action (idle or sleep)
-      this.state = currentAction === "auto" ? "idle" : currentAction;
+      if (currentAction === "auto") {
+        // Auto behavior loop
+        this.behaviorTimer--;
+        
+        // If walking, continue moving towards walkTargetX
+        if (this.state === "walk" && this.walkTargetX !== null) {
+          const dx = this.walkTargetX - this.x;
+          if (Math.abs(dx) > 1) {
+            const speed = 0.8;
+            this.x += Math.sign(dx) * speed;
+            this.facing = dx > 0 ? "right" : "left";
+          } else {
+            this.walkTargetX = null;
+            this.state = "idle";
+            this.behaviorTimer = 100 + Math.random() * 100;
+          }
+        }
+        
+        // If timer expires, choose next random behavior
+        if (this.behaviorTimer <= 0) {
+          const r = Math.random();
+          if (r < 0.35) {
+            // Walk pacing
+            this.state = "walk";
+            // Random target within ±60px of anchorX, clamped inside screen bounds
+            const offset = (Math.random() - 0.5) * 120; // -60px to +60px
+            this.walkTargetX = Math.max(0, Math.min(screenWidth - this.width, this.anchorX + offset));
+            this.behaviorTimer = 150 + Math.random() * 100;
+          } else if (r < 0.65) {
+            // Idle
+            this.state = "idle";
+            this.behaviorTimer = 120 + Math.random() * 120;
+          } else if (r < 0.80) {
+            // Think
+            this.state = "think";
+            this.behaviorTimer = 180 + Math.random() * 100;
+          } else if (r < 0.95) {
+            // Eat
+            this.state = "eat";
+            this.behaviorTimer = 200 + Math.random() * 100;
+          } else {
+            // Sleep / Snooze
+            this.state = "sleep";
+            this.behaviorTimer = 250 + Math.random() * 150;
+          }
+        }
+      } else {
+        // Pinned manual action selected via dropdown
+        this.state = currentAction;
+      }
     }
 
     // Animate hop offset (pseudo-gravity in place)
@@ -340,8 +435,17 @@ class DesktopPet {
         Math.min(Math.abs(this.vx) * 0.018, 0.22);
     }
 
-    // Align rendering translation to bottom-center of pet including hopOffset
-    ctx.translate(this.x + this.width / 2, this.y + this.height + this.hopOffset);
+    // Align rendering translation to bottom-center of pet including hopOffset and chewBob
+    const s = this.width / 64;
+    let chewBob = 0;
+    if (this.state === "eat") {
+      const timeInCycle = Date.now() % 3000;
+      if (timeInCycle < 2250 && (timeInCycle % 300 < 150)) {
+        chewBob = 1.0 * s;
+      }
+    }
+
+    ctx.translate(this.x + this.width / 2, this.y + this.height + this.hopOffset + chewBob);
 
     if (this.scaleFactor !== 1.0) {
       ctx.scale(this.scaleFactor, this.scaleFactor);
@@ -355,6 +459,12 @@ class DesktopPet {
     } else if (this.state === "alarm") {
       const shakeAngle = Math.sin(Date.now() * 0.1) * 0.15;
       ctx.rotate(shakeAngle);
+    } else if (pettingMeter > 8) {
+      const purrWiggle = Math.sin(Date.now() * 0.05) * 0.05;
+      ctx.rotate(purrWiggle);
+    } else if (this.state === "think") {
+      const tilt = 0.08 + Math.sin(Date.now() * 0.003) * 0.03;
+      ctx.rotate(this.facing === "right" ? tilt : -tilt);
     }
 
     ctx.translate(-this.width / 2, -this.height);
@@ -452,6 +562,62 @@ class DesktopPet {
         ctx.fill();
         ctx.restore();
       }
+    }
+
+    // Draw Bamboo stick if eating
+    if (this.state === "eat") {
+      const s = this.width / 64;
+      ctx.save();
+      if (this.facing === "left") {
+        ctx.translate(this.width, 0);
+        ctx.scale(-1, 1);
+      }
+      
+      const timeInCycle = Date.now() % 3000;
+      const segmentsVisible = Math.max(0, 3 - Math.floor(timeInCycle / 750));
+      if (segmentsVisible > 0) {
+        ctx.strokeStyle = "#4ade80"; // Bright green
+        ctx.lineWidth = 3.5 * s;
+        ctx.lineCap = "round";
+        
+        // Stalk coordinates: from hand to mouth
+        const handX = 24 * s;
+        const handY = 38 * s;
+        const mouthX = 32 * s;
+        const mouthY = 26 * s;
+        
+        const dx = mouthX - handX;
+        const dy = mouthY - handY;
+        
+        ctx.beginPath();
+        // Start slightly below hand
+        ctx.moveTo(handX - dx * 0.15, handY - dy * 0.15);
+        
+        // Only draw up to the active segments
+        const endRatio = 0.15 + 0.85 * (segmentsVisible / 3);
+        ctx.lineTo(handX + dx * endRatio, handY + dy * endRatio);
+        ctx.stroke();
+        
+        // Draw bamboo joints (rings)
+        ctx.strokeStyle = "#16a34a"; // Darker green
+        ctx.lineWidth = 4.5 * s;
+        for (let i = 0; i <= segmentsVisible; i++) {
+          const ratio = 0.15 + 0.85 * (i / 3);
+          const rx = handX + dx * ratio;
+          const ry = handY + dy * ratio;
+          
+          // Perpendicular vector for the ring line
+          const len = Math.sqrt(dx*dx + dy*dy);
+          const px = (-dy / len) * 2 * s;
+          const py = (dx / len) * 2 * s;
+          
+          ctx.beginPath();
+          ctx.moveTo(rx - px, ry - py);
+          ctx.lineTo(rx + px, ry + py);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
     }
 
     // Draw Universal Keyboard if typing
@@ -991,6 +1157,113 @@ function drawFallbackPanda(
 }
 
 // ==========================================
+// THOUGHT & SNOOZE BUBBLE RENDERING SYSTEMS
+// ==========================================
+function drawThoughtBubble(ctx, pet) {
+  if (pet.state !== "think") return;
+  
+  ctx.save();
+  const s = pet.width / 64;
+  ctx.font = "bold 14px Outfit, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  
+  // Cycle symbols: ..., ?, 💡
+  const symbols = ["...", "?", "💡"];
+  const symbolIdx = Math.floor((Date.now() / 2000) % 3);
+  const text = symbols[symbolIdx];
+  
+  // Connecting bubbles
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = "#0f172a";
+  ctx.lineWidth = 1.5 * s;
+  
+  // Small dot
+  ctx.beginPath();
+  ctx.arc(pet.x + pet.width / 2, pet.y - 4 * s, 3 * s, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  
+  // Medium dot
+  ctx.beginPath();
+  ctx.arc(pet.x + pet.width / 2 + 6 * s, pet.y - 10 * s, 5 * s, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  
+  // Main thought cloud / bubble
+  const bubbleW = 42 * s;
+  const bubbleH = 28 * s;
+  const bx = pet.x + pet.width / 2 + 10 * s - bubbleW / 2;
+  const by = pet.y - bubbleH - 18 * s;
+  
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(bx, by, bubbleW, bubbleH, 8 * s);
+  } else {
+    ctx.fillRect(bx, by, bubbleW, bubbleH);
+  }
+  ctx.fill();
+  ctx.stroke();
+  
+  // Text
+  ctx.fillStyle = "#0f172a";
+  ctx.fillText(text, bx + bubbleW / 2, by + bubbleH / 2);
+  
+  ctx.restore();
+}
+
+function drawSnoozeBubble(ctx, pet) {
+  if (pet.state !== "sleep") return;
+  
+  ctx.save();
+  const s = pet.width / 64;
+  
+  // Connect bubbles
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = "#0f172a";
+  ctx.lineWidth = 1.5 * s;
+  
+  // Small dot
+  ctx.beginPath();
+  ctx.arc(pet.x + pet.width / 2 + 10 * s, pet.y - 4 * s, 2 * s, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  
+  // Medium dot
+  ctx.beginPath();
+  ctx.arc(pet.x + pet.width / 2 + 16 * s, pet.y - 8 * s, 3.5 * s, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  
+  // Main snooze bubble
+  const bubbleW = 32 * s;
+  const bubbleH = 22 * s;
+  const bx = pet.x + pet.width / 2 + 20 * s - bubbleW / 2;
+  const by = pet.y - bubbleH - 14 * s;
+  
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(bx, by, bubbleW, bubbleH, 6 * s);
+  } else {
+    ctx.fillRect(bx, by, bubbleW, bubbleH);
+  }
+  ctx.fill();
+  ctx.stroke();
+  
+  // "Zz" text inside bubble
+  ctx.fillStyle = "#3b82f6"; // Cute blue snooze color
+  ctx.font = `bold ${11 * s}px Outfit, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  
+  // Slight floating wobble
+  const wobbleY = Math.sin(Date.now() * 0.003) * 1.5 * s;
+  ctx.fillText("Zz", bx + bubbleW / 2, by + bubbleH / 2 + wobbleY);
+  
+  ctx.restore();
+}
+
+// ==========================================
 // SPEECH BUBBLE RENDERING SYSTEM (Feature 12, 13, 14, 15)
 // ==========================================
 function drawSpeechBubble(ctx, pet, noteText, timerText, greetingText) {
@@ -1130,6 +1403,8 @@ window.addEventListener("mouseup", () => {
   if (pet.isDragging) {
     pet.isDragging = false;
     pet.state = "idle";
+    pet.anchorX = pet.x;
+    pet.anchorY = pet.y;
   }
 });
 
@@ -1326,6 +1601,21 @@ function gameLoop() {
     }
   }
 
+  // Leaf particle emitter for eating bamboo
+  if (pet.state === "eat") {
+    const s = pet.width / 64;
+    const timeInCycle = Date.now() % 3000;
+    // Only spawn leaves if there is bamboo to chew
+    if (timeInCycle < 2250 && Math.random() < 0.1) {
+      const mouthX = isSpriteSheetLoaded && spriteSheetImage
+        ? (pet.facing === "right" ? pet.x + 40 * s : pet.x + 24 * s)
+        : pet.x + 32 * s;
+      const leafX = mouthX + (Math.random() - 0.5) * 8 * s;
+      const leafY = pet.y + 26 * s + pet.hopOffset;
+      particles.push(new Particle(leafX, leafY, "leaf"));
+    }
+  }
+
   // Update pet state & coordinates
   pet.update(currentMouseX, currentMouseY);
 
@@ -1365,7 +1655,14 @@ function gameLoop() {
     displayedText = "Purr... ❤️";
   }
 
-  drawSpeechBubble(ctx, pet, displayedText, currentTimerText, greetingText);
+  const hasSpeech = !!greetingText || !!currentNote || !!currentTimerText || pettingMeter > 8;
+  if (hasSpeech) {
+    drawSpeechBubble(ctx, pet, displayedText, currentTimerText, greetingText);
+  } else if (pet.state === "think") {
+    drawThoughtBubble(ctx, pet);
+  } else if (pet.state === "sleep") {
+    drawSnoozeBubble(ctx, pet);
+  }
 
   // Update & Draw particles
   for (let i = particles.length - 1; i >= 0; i--) {
