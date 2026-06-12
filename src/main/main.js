@@ -3,7 +3,11 @@ const path = require("node:path");
 const { uIOhook } = require("uiohook-napi");
 
 let mainWindow = null;
-let dashboardWindow = null;
+
+// Configure Chromium switches for low memory and program gc exposure
+app.commandLine.appendSwitch("js-flags", "--expose-gc --max-old-space-size=48 --max-semi-space-size=1");
+app.commandLine.appendSwitch("enable-low-end-device-mode");
+app.commandLine.appendSwitch("disable-gpu-process-crash-limit");
 
 function createWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();
@@ -48,58 +52,11 @@ function createWindow() {
 
   mainWindow.on("closed", () => {
     mainWindow = null;
-    if (dashboardWindow) {
-      dashboardWindow.close();
-    }
-  });
-
-  // Create Dashboard Window
-  dashboardWindow = new BrowserWindow({
-    width: 330,
-    height: 500,
-    x: primaryDisplay.bounds.width - 350,
-    y: 50,
-    transparent: true,
-    frame: false,
-    alwaysOnTop: true,
-    hasShadow: false,
-    webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-
-  dashboardWindow.loadFile(path.join(__dirname, "../renderer/dashboard.html"));
-
-  dashboardWindow.on("closed", () => {
-    dashboardWindow = null;
-    if (mainWindow) {
-      mainWindow.close();
-    }
-  });
-
-  // IPC Routing
-  ipcMain.on("pet-control", (event, data) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("pet-control", data);
-    }
-  });
-
-  ipcMain.on("dashboard-update", (event, data) => {
-    if (dashboardWindow && !dashboardWindow.isDestroyed()) {
-      dashboardWindow.webContents.send("dashboard-update", data);
-    }
-  });
-
-  ipcMain.on("minimize-dashboard", () => {
-    if (dashboardWindow && !dashboardWindow.isDestroyed()) {
-      dashboardWindow.minimize();
-    }
   });
 }
 
-app.disableHardwareAcceleration();
+// Hardware Acceleration is enabled by default in Electron. 
+// We removed app.disableHardwareAcceleration() to allow GPU offloading, which saves system RAM.
 
 app.whenReady().then(() => {
   createWindow();
@@ -127,3 +84,4 @@ uIOhook.start();
 app.on("before-quit", () => {
   uIOhook.stop();
 });
+
