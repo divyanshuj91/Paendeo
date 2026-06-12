@@ -416,10 +416,11 @@ class DesktopPet {
   }
 
 
-  draw(ctx, skinFilter) {
+  draw(ctx) {
     ctx.save();
 
-    ctx.filter = currentSkin.startsWith("logo-") ? "none" : (skinFilter || "none");
+    // No skin filters to optimize RAM
+    ctx.filter = "none";
 
     // Wobble Kneading Animation
     let kneadAngle = 0;
@@ -477,96 +478,90 @@ class DesktopPet {
     let headTilt = 0;
     const isBlinking = this.isBlinking;
 
-    if (currentSkin.startsWith("logo-")) {
-      const s = this.width / 64;
-      drawLogo(ctx, currentSkin, this, s);
+    if (isSpriteSheetLoaded && spriteSheetImage) {
+      const animConfig =
+        SPRITE_CONFIG.animations[this.state] || SPRITE_CONFIG.animations.idle;
+      const row = animConfig.row;
+      const col = this.animFrameIndex;
+
+      const sx = col * SPRITE_CONFIG.frameWidth;
+      const sy = row * SPRITE_CONFIG.frameHeight;
+
+      ctx.save();
+      if (this.facing === "left") {
+        ctx.translate(this.width, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(
+        spriteSheetImage,
+        sx,
+        sy,
+        SPRITE_CONFIG.frameWidth,
+        SPRITE_CONFIG.frameHeight,
+        0,
+        0,
+        this.width,
+        this.height,
+      );
+      ctx.restore();
+
+      // Draw spritesheet eyes overlay so the eyes follow the cursor
+      drawSpritesheetEyes(ctx, this, s);
     } else {
-      const s = this.width / 64;
-      if (isSpriteSheetLoaded && spriteSheetImage) {
-        const animConfig =
-          SPRITE_CONFIG.animations[this.state] || SPRITE_CONFIG.animations.idle;
-        const row = animConfig.row;
-        const col = this.animFrameIndex;
+      // Fallback Vector Drawing
+      drawFallbackPanda(
+        ctx,
+        0,
+        0,
+        this.width,
+        this.height,
+        this.state,
+        this.facing,
+        this.animFrameIndex + this.animTick,
+        false,
+        this.eyeX,
+        this.eyeY,
+        isBlinking,
+        headTilt,
+        typingHeat,
+      );
+    }
 
-        const sx = col * SPRITE_CONFIG.frameWidth;
-        const sy = row * SPRITE_CONFIG.frameHeight;
-
-        ctx.save();
-        if (this.facing === "left") {
-          ctx.translate(this.width, 0);
-          ctx.scale(-1, 1);
-        }
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(
-          spriteSheetImage,
-          sx,
-          sy,
-          SPRITE_CONFIG.frameWidth,
-          SPRITE_CONFIG.frameHeight,
-          0,
-          0,
-          this.width,
-          this.height,
-        );
-        ctx.restore();
-
-        // Draw spritesheet eyes overlay so the eyes follow the cursor
-        drawSpritesheetEyes(ctx, this, s);
-      } else {
-        // Fallback Vector Drawing
-        drawFallbackPanda(
-          ctx,
-          0,
-          0,
-          this.width,
-          this.height,
-          this.state,
-          this.facing,
-          this.animFrameIndex + this.animTick,
-          false,
-          this.eyeX,
-          this.eyeY,
-          isBlinking,
-          headTilt,
-          typingHeat,
-        );
+    // Draw cheeks blush overlay on standard panda if petted / sleeping
+    const isPandaBlushing = pettingMeter > 4 || this.state === "sleep";
+    if (isPandaBlushing) {
+      ctx.save();
+      if (this.facing === "left") {
+        ctx.translate(this.width, 0);
+        ctx.scale(-1, 1);
       }
+      ctx.fillStyle = "rgba(244, 63, 94, 0.35)"; // Soft rose blush
+      ctx.beginPath();
+      ctx.arc(23 * s, 23 * s, 4 * s, 0, Math.PI * 2);
+      ctx.arc(41 * s, 23 * s, 4 * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
-      // Draw cheeks blush overlay on standard panda if petted / sleeping
-      const isPandaBlushing = pettingMeter > 4 || this.state === "sleep";
-      if (isPandaBlushing) {
-        ctx.save();
-        if (this.facing === "left") {
-          ctx.translate(this.width, 0);
-          ctx.scale(-1, 1);
-        }
-        ctx.fillStyle = "rgba(244, 63, 94, 0.35)"; // Soft rose blush
-        ctx.beginPath();
-        ctx.arc(23 * s, 23 * s, 4 * s, 0, Math.PI * 2);
-        ctx.arc(41 * s, 23 * s, 4 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+    // Draw overheat sweat teardrop on forehead if typing heat is high
+    if (typingHeat > 120) {
+      ctx.save();
+      if (this.facing === "left") {
+        ctx.translate(this.width, 0);
+        ctx.scale(-1, 1);
       }
-
-      // Draw overheat sweat teardrop on forehead if typing heat is high
-      if (typingHeat > 120) {
-        ctx.save();
-        if (this.facing === "left") {
-          ctx.translate(this.width, 0);
-          ctx.scale(-1, 1);
-        }
-        ctx.fillStyle = "#38bdf8"; // Light blue sweat drop
-        const sx = 20 * s;
-        const sy = 10 * s + Math.sin(Date.now() * 0.01) * 2 * s;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.quadraticCurveTo(sx - 2 * s, sy + 4 * s, sx, sy + 4 * s);
-        ctx.arc(sx, sy + 4 * s, 2 * s, 0, Math.PI);
-        ctx.quadraticCurveTo(sx + 2 * s, sy + 4 * s, sx, sy);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      }
+      ctx.fillStyle = "#38bdf8"; // Light blue sweat drop
+      const sx = 20 * s;
+      const sy = 10 * s + Math.sin(Date.now() * 0.01) * 2 * s;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.quadraticCurveTo(sx - 2 * s, sy + 4 * s, sx, sy + 4 * s);
+      ctx.arc(sx, sy + 4 * s, 2 * s, 0, Math.PI);
+      ctx.quadraticCurveTo(sx + 2 * s, sy + 4 * s, sx, sy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
     }
 
     // Draw Bamboo stick if eating
@@ -804,203 +799,7 @@ function drawSpritesheetEyes(ctx, pet, s) {
 }
 
 // ==========================================
-// LOGO VECTOR RENDERER
-// ==========================================
-function drawLogo(ctx, logoStyle, pet, s) {
-  ctx.save();
-  const w = pet.width;
-  const h = pet.height;
-  
-  // Base Glow effect (Rich Aesthetics)
-  ctx.shadowBlur = 10 * s;
-  
-  if (logoStyle === "logo-dvd") {
-    ctx.fillStyle = pet.dvdColor;
-    ctx.shadowColor = pet.dvdColor;
-    
-    // Draw DVD pill background (oval ellipse)
-    ctx.beginPath();
-    ctx.ellipse(w / 2, h / 2 + 10 * s, 25 * s, 8 * s, 0, 0, Math.PI * 2);
-    ctx.strokeStyle = pet.dvdColor;
-    ctx.lineWidth = 1.8 * s;
-    ctx.stroke();
-    
-    // Draw "DVD" text
-    ctx.font = `italic bold ${16 * s}px Arial, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("DVD", w / 2, h / 2 - 4 * s);
-    
-    // Draw "VIDEO" text inside the pill
-    ctx.font = `bold ${5 * s}px Arial, sans-serif`;
-    ctx.fillText("VIDEO", w / 2, h / 2 + 10 * s);
-    
-  } else if (logoStyle === "logo-gemini") {
-    const grad = ctx.createLinearGradient(0, 0, w, h);
-    grad.addColorStop(0, "#38bdf8"); // Sky blue
-    grad.addColorStop(0.3, "#818cf8"); // Indigo
-    grad.addColorStop(0.7, "#ec4899"); // Pink
-    grad.addColorStop(1, "#f59e0b"); // Amber
-    
-    ctx.fillStyle = grad;
-    ctx.shadowColor = "rgba(236, 72, 153, 0.6)";
-    
-    // Draw 4-pointed sparkle
-    const cx = w / 2;
-    const cy = h / 2;
-    const size = 22 * s;
-    
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - size);
-    ctx.quadraticCurveTo(cx, cy, cx + size, cy);
-    ctx.quadraticCurveTo(cx, cy, cx, cy + size);
-    ctx.quadraticCurveTo(cx, cy, cx - size, cy);
-    ctx.quadraticCurveTo(cx, cy, cx, cy - size);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Draw a smaller secondary sparkle
-    ctx.fillStyle = "#ffffff";
-    const scx = cx + 12 * s;
-    const scy = cy - 12 * s;
-    const ssize = 8 * s;
-    ctx.beginPath();
-    ctx.moveTo(scx, scy - ssize);
-    ctx.quadraticCurveTo(scx, scy, scx + ssize, scy);
-    ctx.quadraticCurveTo(scx, scy, scx, scy + ssize);
-    ctx.quadraticCurveTo(scx, scy, scx - ssize, scy);
-    ctx.quadraticCurveTo(scx, scy, scx, scy - ssize);
-    ctx.closePath();
-    ctx.fill();
-    
-  } else if (logoStyle === "logo-electron") {
-    const cx = w / 2;
-    const cy = h / 2;
-    
-    // Central Nucleus
-    ctx.fillStyle = "#61dafb"; // Electron cyan
-    ctx.shadowColor = "#61dafb";
-    ctx.beginPath();
-    ctx.arc(cx, cy, 6 * s, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // 3 Orbit Ellipses
-    ctx.strokeStyle = "rgba(97, 218, 251, 0.45)";
-    ctx.lineWidth = 1 * s;
-    
-    const orbits = [0, Math.PI / 3, -Math.PI / 3];
-    // Orbit faster if petted or typing
-    const speedMultiplier = pet.state === "knead" ? 0.015 : (pettingMeter > 4 ? 0.008 : 0.003);
-    const orbitTime = Date.now() * speedMultiplier;
-    
-    orbits.forEach((angle, idx) => {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(angle);
-      
-      // Draw ellipse path
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 24 * s, 8 * s, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      
-      // Draw orbiting electron dot
-      const eTime = orbitTime + idx * (Math.PI * 2 / 3);
-      const ex = 24 * s * Math.cos(eTime);
-      const ey = 8 * s * Math.sin(eTime);
-      
-      ctx.fillStyle = "#ffffff";
-      ctx.shadowColor = "#ffffff";
-      ctx.beginPath();
-      ctx.arc(ex, ey, 2.5 * s, 0, Math.PI * 2);
-      ctx.fill();
-      
-      ctx.restore();
-    });
-    
-  } else if (logoStyle === "logo-paendeo") {
-    const cx = w / 2;
-    const cy = h / 2;
-    
-    ctx.shadowColor = "rgba(165, 180, 252, 0.4)";
-    
-    // Ears
-    ctx.fillStyle = "#1e293b";
-    ctx.beginPath();
-    ctx.arc(cx - 15 * s, cy - 12 * s, 7 * s, 0, Math.PI * 2);
-    ctx.arc(cx + 15 * s, cy - 12 * s, 7 * s, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Face badge
-    ctx.fillStyle = "#ffffff";
-    ctx.beginPath();
-    ctx.arc(cx, cy, 18 * s, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.strokeStyle = "#6366f1";
-    ctx.lineWidth = 2 * s;
-    ctx.stroke();
-    
-    // Eye Patches
-    ctx.fillStyle = "#1e293b";
-    ctx.save();
-    ctx.translate(cx - 7 * s, cy - 1 * s);
-    ctx.rotate(Math.PI / 6);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 5 * s, 3.5 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-    
-    ctx.save();
-    ctx.translate(cx + 7 * s, cy - 1 * s);
-    ctx.rotate(-Math.PI / 6);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 5 * s, 3.5 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-    
-    // Eyes
-    ctx.fillStyle = "#ffffff";
-    const isBlushing = pettingMeter > 4 || pet.state === "sleep";
-    
-    if (isBlushing) {
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1.2 * s;
-      ctx.lineCap = "round";
-      
-      ctx.beginPath();
-      ctx.arc(cx - 7 * s, cy, 2 * s, Math.PI, 0);
-      ctx.stroke();
-      
-      ctx.beginPath();
-      ctx.arc(cx + 7 * s, cy, 2 * s, Math.PI, 0);
-      ctx.stroke();
-    } else {
-      const eyeLookX = (pet.eyeX || 0) * 0.2;
-      const eyeLookY = (pet.eyeY || 0) * 0.2;
-      ctx.beginPath();
-      ctx.arc(cx - 7 * s + eyeLookX, cy - 1 * s + eyeLookY, 1.2 * s, 0, Math.PI * 2);
-      ctx.arc(cx + 7 * s + eyeLookX, cy - 1 * s + eyeLookY, 1.2 * s, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    
-    // Nose
-    ctx.fillStyle = "#0f172a";
-    ctx.beginPath();
-    ctx.arc(cx, cy + 4 * s, 1.8 * s, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Blush
-    if (isBlushing) {
-      ctx.fillStyle = "rgba(244, 63, 94, 0.4)";
-      ctx.beginPath();
-      ctx.arc(cx - 11 * s, cy + 5 * s, 3 * s, 0, Math.PI * 2);
-      ctx.arc(cx + 11 * s, cy + 5 * s, 3 * s, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-  
-  ctx.restore();
-}
+// Logo Vector Renderer removed to optimize RAM
 
 // ==========================================
 // FALLBACK VECTOR RENDERER
@@ -1353,15 +1152,17 @@ function drawSpeechBubble(ctx, pet, noteText, timerText, greetingText) {
 let currentMouseX = 0;
 let currentMouseY = 0;
 let lastWiggleDirection = 0;
-
 let lastIgnoreMouseState = null;
+let prevMouseX = 0;
+let prevMouseY = 0;
 
 window.addEventListener("mousemove", (e) => {
   currentMouseX = e.clientX;
   currentMouseY = e.clientY;
-  mouseIdleTicks = 0; // Reset mouse idle timer on movement
+  mouseIdleTicks = 0;
 
   const isOverPet = pet.containsPoint(currentMouseX, currentMouseY);
+  const isOverPanel = isMouseOverPanel(currentMouseX, currentMouseY);
 
   // Petting detection: horizontal wiggle on panda's head (top 60% of body)
   const isOverPetHead = isOverPet && currentMouseY < pet.y + pet.height * 0.6;
@@ -1373,7 +1174,7 @@ window.addEventListener("mousemove", (e) => {
         currentDirection !== lastWiggleDirection &&
         lastWiggleDirection !== 0
       ) {
-        pettingMeter += 2.0; // Petting action wiggled
+        pettingMeter += 2.0;
       }
       lastWiggleDirection = currentDirection;
     }
@@ -1382,16 +1183,13 @@ window.addEventListener("mousemove", (e) => {
   prevMouseX = currentMouseX;
   prevMouseY = currentMouseY;
 
-  // Throttle / Deduplicate IPC messages to setIgnoreMouse
-  const shouldIgnore = !isOverPet;
+  // Set ignore mouse event if mouse is not over pet or dashboard panel, and no dragging is active
+  const shouldIgnore = !isOverPet && !isOverPanel && !isPanelDragging && !pet.isDragging;
   if (shouldIgnore !== lastIgnoreMouseState) {
     lastIgnoreMouseState = shouldIgnore;
     window.electronAPI.setIgnoreMouse(shouldIgnore);
   }
 });
-
-let prevMouseX = 0;
-let prevMouseY = 0;
 
 // Drag handlers
 window.addEventListener("mousedown", (e) => {
@@ -1411,19 +1209,26 @@ window.addEventListener("mouseup", () => {
     pet.anchorX = pet.x;
     pet.anchorY = pet.y;
   }
+
+  // Re-evaluate ignore mouse events immediately on mouse release
+  const isOverPet = pet.containsPoint(currentMouseX, currentMouseY);
+  const isOverPanel = isMouseOverPanel(currentMouseX, currentMouseY);
+  const shouldIgnore = !isOverPet && !isOverPanel && !isPanelDragging && !pet.isDragging;
+  if (shouldIgnore !== lastIgnoreMouseState) {
+    lastIgnoreMouseState = shouldIgnore;
+    window.electronAPI.setIgnoreMouse(shouldIgnore);
+  }
 });
 
 window.addEventListener("dblclick", (e) => {
   if (pet.containsPoint(e.clientX, e.clientY)) {
-    // Hop in place on double click
     pet.hopVelocity = -8;
   }
 });
 
 // ==========================================
-// SKIN SELECTION BINDINGS & COLOR MAP
+// SKIN SELECTION & USER STATE (Classic Panda Only)
 // ==========================================
-let currentSkin = "classic";
 let currentUserName = "";
 let lastKeystrokeTime = 0;
 const codeChars = ["{", "}", "(", ")", ";", "<", ">", "/", "+", "=", "-", "*", "&", "|", "!", "[", "]", "0", "1", "a", "c", "x", "y", "z", "f", "p"];
@@ -1437,7 +1242,6 @@ if (window.electronAPI && window.electronAPI.onGlobalKeydown) {
       pet.vx = 0;
       pet.vy = 0;
     }
-    // Spawn code character particle
     const char = codeChars[Math.floor(Math.random() * codeChars.length)];
     spawnParticle(
       pet.x + pet.width / 2 + (Math.random() - 0.5) * 40,
@@ -1448,68 +1252,264 @@ if (window.electronAPI && window.electronAPI.onGlobalKeydown) {
   });
 }
 
-let activeReminder = null; // { topic: string, targetMs: number, warningTriggered: boolean, alarmTriggered: boolean }
+let activeReminder = null;
 let alarmResetTimeout = null;
 
-if (window.electronAPI && window.electronAPI.onPetControl) {
-  window.electronAPI.onPetControl((data) => {
-    switch (data.type) {
-      case "set-action":
-        currentAction = data.value;
-        if (currentAction !== "auto") {
-          pet.state = currentAction;
-        }
-        break;
-      case "set-skin":
-        currentSkin = data.value;
-        break;
-      case "set-name":
-        currentUserName = data.value;
-        break;
-      case "set-note":
-        currentNote = data.value;
-        break;
-      case "note-typing":
-        typingHeat = Math.min(typingHeat + 14, 100);
-        if (pet.state !== "knead" && pet.state !== "sleep") {
-          pet.state = "knead";
-        }
-        lastKeystrokeTime = Date.now();
-        const nChar = codeChars[Math.floor(Math.random() * codeChars.length)];
-        spawnParticle(
-          pet.x + pet.width / 2 + (Math.random() - 0.5) * 40,
-          pet.y + pet.height - 15,
-          "code",
-          nChar
-        );
-        break;
-      case "show-greeting":
-        showGreetingBubble(data.text, data.duration);
-        break;
-      case "set-timer":
-        currentTimerText = data.text;
-        break;
-      case "pet-hop":
-        pet.hopVelocity = -8; // start hop in place
-        break;
-      case "set-alarm":
-        activeReminder = {
-          topic: data.topic,
-          targetMs: data.targetMs,
-          warningTriggered: false,
-          alarmTriggered: false,
-        };
-        break;
-      case "cancel-alarm":
-        activeReminder = null;
-        if (pet.state === "alarm") pet.state = "idle";
-        clearTimeout(alarmResetTimeout);
-        break;
-    }
-  });
+// ==========================================
+// MERGED LOCAL DASHBOARD CONTROLLER
+// ==========================================
+const uiPanel = document.getElementById("ui-panel");
+const minimizeBtn = document.getElementById("minimize-btn");
+
+minimizeBtn.addEventListener("click", () => {
+  uiPanel.classList.toggle("minimized");
+});
+
+const panelHeader = uiPanel.querySelector(".panel-header");
+let isPanelDragging = false;
+let panelStartX = 0;
+let panelStartY = 0;
+let panelStartLeft = 0;
+let panelStartTop = 0;
+
+panelHeader.addEventListener("mousedown", (e) => {
+  if (e.target.closest("button") || e.target.closest("svg")) return;
+  isPanelDragging = true;
+  uiPanel.classList.add("dragging");
+  panelStartX = e.clientX;
+  panelStartY = e.clientY;
+  const rect = uiPanel.getBoundingClientRect();
+  panelStartLeft = rect.left;
+  panelStartTop = rect.top;
+  e.preventDefault();
+});
+
+window.addEventListener("mousemove", (e) => {
+  if (!isPanelDragging) return;
+  const dx = e.clientX - panelStartX;
+  const dy = e.clientY - panelStartY;
+  let newLeft = panelStartLeft + dx;
+  let newTop = panelStartTop + dy;
+
+  // Clamp within screen bounds (with 10px margins)
+  newLeft = Math.max(10, Math.min(window.innerWidth - uiPanel.offsetWidth - 10, newLeft));
+  newTop = Math.max(10, Math.min(window.innerHeight - uiPanel.offsetHeight - 10, newTop));
+
+  uiPanel.style.left = `${newLeft}px`;
+  uiPanel.style.top = `${newTop}px`;
+  uiPanel.style.right = "auto";
+});
+
+window.addEventListener("mouseup", () => {
+  if (isPanelDragging) {
+    isPanelDragging = false;
+    uiPanel.classList.remove("dragging");
+  }
+});
+
+// UI Inputs & Controls
+document.getElementById("action-select").addEventListener("change", (e) => {
+  currentAction = e.target.value;
+  if (currentAction !== "auto") {
+    pet.state = currentAction;
+  }
+});
+
+document.getElementById("name-input").addEventListener("change", (e) => {
+  const name = e.target.value.trim();
+  if (name) {
+    showGreetingBubble(`Hello, ${name}! 🐼`, 3500);
+    currentUserName = name;
+  }
+});
+
+const noteInput = document.getElementById("note-input");
+noteInput.addEventListener("input", (e) => {
+  typingHeat = Math.min(typingHeat + 14, 100);
+  if (pet.state !== "knead" && pet.state !== "sleep") {
+    pet.state = "knead";
+  }
+  lastKeystrokeTime = Date.now();
+  const nChar = codeChars[Math.floor(Math.random() * codeChars.length)];
+  spawnParticle(
+    pet.x + pet.width / 2 + (Math.random() - 0.5) * 40,
+    pet.y + pet.height - 15,
+    "code",
+    nChar
+  );
+  currentNote = e.target.value.trim();
+});
+
+// Pomodoro Timer
+let pomodoroState = "none";
+let pomodoroRemaining = 0;
+let pomodoroInterval = null;
+
+function formatTime(secs) {
+  const m = Math.floor(secs / 60).toString().padStart(2, "0");
+  const s = (secs % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
 }
 
+document.getElementById("pomodoro-btn").addEventListener("click", () => {
+  const btn = document.getElementById("pomodoro-btn");
+  if (pomodoroState === "none") {
+    pomodoroState = "focus";
+    pomodoroRemaining = 25 * 60;
+    btn.textContent = "Stop Focus";
+    btn.classList.add("timer-running");
+    
+    showGreetingBubble("Focus session started! 💻", 3000);
+    currentTimerText = `⏱️ Pomodoro (${formatTime(pomodoroRemaining)})`;
 
+    pomodoroInterval = setInterval(() => {
+      if (pomodoroRemaining > 0) {
+        pomodoroRemaining--;
+        currentTimerText = `⏱️ Pomodoro (${formatTime(pomodoroRemaining)})`;
+      } else {
+        clearInterval(pomodoroInterval);
+        pet.hopVelocity = -8;
+
+        if (pomodoroState === "focus") {
+          pomodoroState = "break";
+          pomodoroRemaining = 5 * 60;
+          btn.textContent = "Stop Break";
+          showGreetingBubble("Take a break! ☕ You did great.", 5000);
+          currentTimerText = `⏱️ Break (${formatTime(pomodoroRemaining)})`;
+          
+          // Start break interval
+          pomodoroInterval = setInterval(() => {
+            if (pomodoroRemaining > 0) {
+              pomodoroRemaining--;
+              currentTimerText = `⏱️ Break (${formatTime(pomodoroRemaining)})`;
+            } else {
+              clearInterval(pomodoroInterval);
+              pet.hopVelocity = -8;
+              pomodoroState = "none";
+              btn.textContent = "Start Pomodoro";
+              btn.classList.remove("timer-running");
+              showGreetingBubble("Break over! Let's focus again! 🚀", 5000);
+              currentTimerText = "";
+            }
+          }, 1000);
+        }
+      }
+    }, 1000);
+  } else {
+    clearInterval(pomodoroInterval);
+    pomodoroState = "none";
+    pomodoroRemaining = 0;
+    btn.textContent = "Start Pomodoro";
+    btn.classList.remove("timer-running");
+    currentTimerText = "";
+  }
+});
+
+// Stretch Timer
+let stretchTimerState = "none";
+let stretchRemaining = 0;
+let stretchIntervalObj = null;
+
+document.getElementById("stretch-timer-btn").addEventListener("click", () => {
+  const btn = document.getElementById("stretch-timer-btn");
+  if (stretchTimerState === "none") {
+    const inputVal = parseInt(document.getElementById("stretch-input").value, 10);
+    const mins = isNaN(inputVal) || inputVal < 1 ? 30 : inputVal;
+
+    stretchTimerState = "running";
+    stretchRemaining = mins * 60;
+    btn.textContent = "Stop";
+    btn.classList.add("timer-running");
+    showGreetingBubble(`Stretch timer set for ${mins} mins! 🤸`, 3000);
+
+    stretchIntervalObj = setInterval(() => {
+      if (stretchTimerState === "running") {
+        if (stretchRemaining > 0) {
+          stretchRemaining--;
+        } else {
+          stretchTimerState = "stretching";
+          showGreetingBubble("Time to stretch! 🤸 Stand up!", 8000);
+          pet.state = "stretch";
+
+          setTimeout(() => {
+            if (stretchTimerState === "stretching") {
+              stretchTimerState = "running";
+              stretchRemaining = mins * 60;
+              pet.state = "idle";
+            }
+          }, 8000);
+        }
+      }
+    }, 1000);
+  } else {
+    stretchTimerState = "none";
+    clearInterval(stretchIntervalObj);
+    btn.textContent = "Start";
+    btn.classList.remove("timer-running");
+    pet.state = "idle";
+  }
+});
+
+// Alarm Timer
+document.getElementById("alarm-btn").addEventListener("click", () => {
+  const btn = document.getElementById("alarm-btn");
+  if (activeReminder) {
+    activeReminder = null;
+    btn.textContent = "Set Alarm";
+    btn.classList.remove("timer-running");
+    if (pet.state === "alarm") pet.state = "idle";
+    clearTimeout(alarmResetTimeout);
+    showGreetingBubble("Alarm cancelled. 🔕", 3000);
+    return;
+  }
+
+  const timeInput = document.getElementById("alarm-time").value;
+  const topicInput = document.getElementById("alarm-topic").value.trim() || "Reminder";
+
+  if (!timeInput) {
+    showGreetingBubble("Please select a time first! 🕒", 3000);
+    return;
+  }
+
+  const [hours, minutes] = timeInput.split(":").map(Number);
+  const now = new Date();
+  let targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0);
+
+  if (targetDate.getTime() <= now.getTime()) {
+    targetDate.setDate(targetDate.getDate() + 1);
+  }
+
+  activeReminder = {
+    topic: topicInput,
+    targetMs: targetDate.getTime(),
+    warningTriggered: false,
+    alarmTriggered: false,
+  };
+
+  btn.textContent = "Cancel Alarm";
+  btn.classList.add("timer-running");
+
+  const formattedTime = targetDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  showGreetingBubble(`Alarm set for ${formattedTime}! ⏰`, 4000);
+});
+
+// Periodic programmatic V8 garbage collection to optimize RAM
+setInterval(() => {
+  if (window.gc) {
+    window.gc();
+  }
+}, 15000);
+
+function isMouseOverPanel(mx, my) {
+  if (!uiPanel) return false;
+  const rect = uiPanel.getBoundingClientRect();
+  return (
+    mx >= rect.left &&
+    mx <= rect.right &&
+    my >= rect.top &&
+    my <= rect.bottom
+  );
+}
 
 // ==========================================
 // GAME LOOP (Capped at 30 FPS for major CPU/GPU & RAM savings)
@@ -1537,7 +1537,7 @@ function gameLoop(timestamp) {
   }
 
   if (typingHeat > 0) {
-    typingHeat -= 1.2; // 2x faster cooldown so only very fast typing heats up
+    typingHeat -= 1.2;
     if (typingHeat < 0) typingHeat = 0;
   }
 
@@ -1567,7 +1567,7 @@ function gameLoop(timestamp) {
 
       alarmResetTimeout = setTimeout(() => {
         if (pet.state === "alarm") pet.state = "idle";
-      }, 10000); // Mild warning for 10 seconds
+      }, 10000);
     }
 
     // Actual Alarm Trigger
@@ -1585,11 +1585,13 @@ function gameLoop(timestamp) {
 
       alarmResetTimeout = setTimeout(() => {
         if (pet.state === "alarm") pet.state = "idle";
-        if (window.electronAPI && window.electronAPI.sendDashboardUpdate) {
-          window.electronAPI.sendDashboardUpdate({ type: "alarm-finished" });
+        const alarmBtn = document.getElementById("alarm-btn");
+        if (alarmBtn) {
+          alarmBtn.textContent = "Set Alarm";
+          alarmBtn.classList.remove("timer-running");
         }
         activeReminder = null;
-      }, 15000); // Shake and jump for 15 seconds
+      }, 15000);
     }
   }
 
@@ -1615,7 +1617,6 @@ function gameLoop(timestamp) {
   if (pet.state === "eat") {
     const s = pet.width / 64;
     const timeInCycle = Date.now() % 3000;
-    // Only spawn leaves if there is bamboo to chew
     if (timeInCycle < 2250 && Math.random() < 0.1) {
       const mouthX = isSpriteSheetLoaded && spriteSheetImage
         ? (pet.facing === "right" ? pet.x + 40 * s : pet.x + 24 * s)
@@ -1629,26 +1630,8 @@ function gameLoop(timestamp) {
   // Update pet state & coordinates
   pet.update(currentMouseX, currentMouseY);
 
-  // Compute skin CSS canvas filters
-  let skinFilter = "none";
-  switch (currentSkin) {
-    case "ruby":
-      skinFilter = "hue-rotate(345deg) saturate(3) brightness(0.9)";
-      break;
-    case "midnight":
-      skinFilter =
-        "invert(0.15) sepia(0.8) saturate(2) hue-rotate(220deg) brightness(0.85) contrast(1.15)";
-      break;
-    case "frost":
-      skinFilter = "hue-rotate(185deg) saturate(2.2) brightness(1.15)";
-      break;
-    case "ghost":
-      skinFilter = "invert(0.95) hue-rotate(190deg) opacity(0.6)";
-      break;
-  }
-
-  // Draw the pet
-  pet.draw(ctx, skinFilter);
+  // Draw the pet directly without filters to optimize RAM
+  pet.draw(ctx);
 
   // Fast Overheat Tint
   if (typingHeat > 130) {
