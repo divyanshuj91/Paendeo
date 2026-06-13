@@ -249,3 +249,200 @@ body {
     box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
   }
 }
+
+/* Tab Layout & Controls Styles */
+.tabs-nav {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 6px;
+  overflow-x: auto;
+}
+
+.tabs-nav::-webkit-scrollbar {
+  height: 2px;
+}
+.tabs-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 1px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  outline: none;
+  white-space: nowrap;
+}
+
+.tab-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.15);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+#ui-panel.minimized .tabs-nav {
+  display: none;
+}
+
+/* Stats Section Grid */
+.stats-section {
+  margin-top: 4px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.stat-card {
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 6px 8px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.stat-label {
+  font-size: 8px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 2px;
+}
+
+.stat-val {
+  font-size: 11px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+/* Todo List Styling */
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  padding: 4px 6px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.todo-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.todo-item span {
+  flex: 1;
+  text-align: left;
+  word-break: break-all;
+  color: #e2e8f0;
+}
+
+.todo-item span.completed {
+  text-decoration: line-through;
+  opacity: 0.5;
+  color: #94a3b8;
+}
+
+.todo-checkbox {
+  cursor: pointer;
+  accent-color: #818cf8;
+}
+
+.todo-del-btn {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 10px;
+  padding: 0 4px;
+  transition: opacity 0.2s;
+}
+
+.todo-del-btn:hover {
+  opacity: 0.7;
+}
+
+/* Notepad / Scrollbar Styling */
+.premium-textarea {
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 11px;
+  outline: none;
+  resize: none;
+  transition: all 0.2s ease;
+  line-height: 1.4;
+}
+
+.premium-textarea:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+#todo-list::-webkit-scrollbar {
+  width: 4px;
+}
+#todo-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+#todo-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+.premium-file-input {
+  font-size: 10px;
+  color: #94a3b8;
+  border: none;
+  background: transparent;
+  padding: 0;
+  width: 100%;
+}
+
+.premium-file-input::-webkit-file-upload-button {
+  background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 6px;
+}
+
+.premium-file-input::-webkit-file-upload-button:hover {
+  background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+}
+

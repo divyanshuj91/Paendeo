@@ -68,7 +68,18 @@ let currentNote = "";
 let currentTimerText = "";
 let currentAction = "auto";
 
-// Keyboard controls disabled for pinned mode
+// Desktop Pet Engine configurations
+let currentSkin = "normal";
+let isCustomLoaded = false;
+let customSpriteImage = null;
+let petScale = 1.0;
+let petSpeedFactor = 1.0;
+
+// Stat tracking counters
+let totalClicks = 0;
+let clickTimestamps = [];
+let keyTimestamps = [];
+
 
 // ==========================================
 // SPEECH BUBBLE & GREETINGS STATE
@@ -90,7 +101,7 @@ class Particle {
   constructor(x, y, type, char) {
     this.x = x;
     this.y = y;
-    this.type = type; // 'heart', 'steam', 'code', or 'leaf'
+    this.type = type; // 'heart', 'steam', 'code', 'leaf', or 'water'
     this.char = char || "";
     
     if (type === "code") {
@@ -103,6 +114,11 @@ class Particle {
       this.vy = 0.4 + Math.random() * 0.8; // falls down slowly
       this.life = 50 + Math.random() * 30;
       this.size = 5 + Math.random() * 3;
+    } else if (type === "water") {
+      this.vx = (Math.random() - 0.5) * 3.0;
+      this.vy = -1.5 - Math.random() * 2.5;
+      this.life = 35 + Math.random() * 20;
+      this.size = 2.5 + Math.random() * 3;
     } else {
       this.vx = (Math.random() - 0.5) * 1.5;
       this.vy =
@@ -157,6 +173,14 @@ class Particle {
       ctx.ellipse(this.x, this.y, this.size, this.size * 0.5, rotationAngle, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+    } else if (this.type === "water") {
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = "#38bdf8"; // Water blue
+      ctx.shadowColor = "#38bdf8";
+      ctx.shadowBlur = 2;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fill();
     } else {
       ctx.fillStyle = `rgba(226, 232, 240, ${alpha * 0.8})`;
       ctx.beginPath();
@@ -196,7 +220,7 @@ class DesktopPet {
     this.anchorY = this.y;
     this.afkSleepActive = false;
 
-    this.state = "idle"; // 'idle', 'walk', 'run', 'float', 'sleep', 'drag', 'knead', 'stretch', 'alarm'
+    this.state = "idle"; // 'idle', 'walk', 'run', 'float', 'sleep', 'drag', 'knead', 'stretch', 'alarm', 'climb'
     this.facing = "right"; // 'left', 'right'
     this.isAntiGravity = false;
 
@@ -223,11 +247,20 @@ class DesktopPet {
     // Hop animation offsets (pinned movement)
     this.hopOffset = 0;
     this.hopVelocity = 0;
+
+    // Twitch Override and Physics variables
+    this.twitchOverrideState = null;
+    this.twitchOverrideTimer = 0;
+    this.climbSpeed = 1.0;
   }
 
   update(mouseX, mouseY) {
     // 1. Dragging physics override
     if (this.isDragging) {
+      this.vx = mouseX - this.prevMouseX;
+      this.vy = mouseY - this.prevMouseY;
+      this.prevMouseX = mouseX;
+      this.prevMouseY = mouseY;
       this.x = mouseX - this.dragOffsetX;
       this.y = mouseY - this.dragOffsetY;
       this.state = "drag";
@@ -242,10 +275,76 @@ class DesktopPet {
       return;
     }
 
-    // 2. AFK Auto-Sleep detection
+    // 2. Falling / Gravity physics (if in mid-air and not climbing)
+    const isFalling = this.y < (screenHeight - this.height) && this.state !== "climb";
+    if (isFalling) {
+      this.vy += 0.55; // Gravity
+      this.vx *= 0.98; // Air resistance
+      
+      this.x += this.vx;
+      this.y += this.vy;
+      this.state = "float";
+
+      // Bounce/Land check
+      if (this.y >= screenHeight - this.height) {
+        this.y = screenHeight - this.height;
+        if (Math.abs(this.vy) > 3.0) {
+          this.vy = -this.vy * 0.32; // Bounce back up
+          this.vx *= 0.6;
+          // Spawn landing impact smoke particles
+          for (let i = 0; i < 4; i++) {
+            spawnParticle(this.x + this.width / 2 + (Math.random() - 0.5) * 10, this.y + this.height, "steam");
+          }
+        } else {
+          this.vy = 0;
+          this.vx = 0;
+          this.state = "idle";
+          this.anchorX = this.x; // reset walking anchor
+        }
+      }
+
+      // Wall bounce
+      if (this.x <= 0) {
+        this.x = 0;
+        this.vx = -this.vx * 0.45;
+      } else if (this.x >= screenWidth - this.width) {
+        this.x = screenWidth - this.width;
+        this.vx = -this.vx * 0.45;
+      }
+
+      this.updateAnimationFrame();
+      return;
+    }
+
+    // 3. Wall Climbing logic
+    if (this.state === "climb") {
+      this.y -= this.climbSpeed;
+      this.facing = this.x < screenWidth / 2 ? "left" : "right";
+      
+      // Check climb boundaries
+      if (this.y < screenHeight * 0.35 || Math.random() < 0.007) {
+        // Drop off wall!
+        this.state = "float";
+        this.vy = 0.5;
+        this.vx = this.x < screenWidth / 2 ? 2.5 : -2.5; // kick off from wall
+      }
+      this.updateAnimationFrame();
+      return;
+    }
+
+    // 4. Twitch Command Override
+    if (this.twitchOverrideTimer > 0) {
+      this.twitchOverrideTimer--;
+      this.state = this.twitchOverrideState;
+      if (this.twitchOverrideTimer === 0) {
+        this.twitchOverrideState = null;
+      }
+    }
+
+    // 5. AFK Auto-Sleep detection
     const isAFK = (mouseIdleTicks > 1800) && (Date.now() - lastKeystrokeTime > 30000);
-    if (isAFK) {
-      if (!this.afkSleepActive && this.state !== "drag" && this.state !== "alarm") {
+    if (isAFK && !this.twitchOverrideState) {
+      if (!this.afkSleepActive) {
         this.afkSleepActive = true;
         this.state = "sleep";
       }
@@ -262,69 +361,71 @@ class DesktopPet {
       return;
     }
 
-    // React to petting
-    if (pettingMeter > 8) {
-      this.state = "sleep";
-      if (Math.random() < 0.08) {
-        spawnParticle(
-          this.x + this.width / 2 + (Math.random() - 0.5) * 10,
-          this.y + 10,
-          "heart"
-        );
-      }
-    } else if (Date.now() - lastKeystrokeTime < 300) {
-      // React to typing / kneading
-      this.state = "knead";
-    } else {
-      if (currentAction === "auto") {
-        // Auto behavior loop
-        this.behaviorTimer--;
-        
-        // If walking, continue moving towards walkTargetX
-        if (this.state === "walk" && this.walkTargetX !== null) {
-          const dx = this.walkTargetX - this.x;
-          if (Math.abs(dx) > 1) {
-            const speed = 0.8;
-            this.x += Math.sign(dx) * speed;
-            this.facing = dx > 0 ? "right" : "left";
-          } else {
-            this.walkTargetX = null;
-            this.state = "idle";
-            this.behaviorTimer = 100 + Math.random() * 100;
-          }
+    // React to petting/kneading (if not overridden by Twitch)
+    if (!this.twitchOverrideState) {
+      if (pettingMeter > 8) {
+        this.state = "sleep";
+        if (Math.random() < 0.08) {
+          spawnParticle(
+            this.x + this.width / 2 + (Math.random() - 0.5) * 10,
+            this.y + 10,
+            "heart"
+          );
         }
-        
-        // If timer expires, choose next random behavior
-        if (this.behaviorTimer <= 0) {
-          const r = Math.random();
-          if (r < 0.35) {
-            // Walk pacing
-            this.state = "walk";
-            // Random target within ±60px of anchorX, clamped inside screen bounds
-            const offset = (Math.random() - 0.5) * 120; // -60px to +60px
-            this.walkTargetX = Math.max(0, Math.min(screenWidth - this.width, this.anchorX + offset));
-            this.behaviorTimer = 150 + Math.random() * 100;
-          } else if (r < 0.65) {
-            // Idle
-            this.state = "idle";
-            this.behaviorTimer = 120 + Math.random() * 120;
-          } else if (r < 0.80) {
-            // Think
-            this.state = "think";
-            this.behaviorTimer = 180 + Math.random() * 100;
-          } else if (r < 0.95) {
-            // Eat
-            this.state = "eat";
-            this.behaviorTimer = 200 + Math.random() * 100;
-          } else {
-            // Sleep / Snooze
-            this.state = "sleep";
-            this.behaviorTimer = 250 + Math.random() * 150;
-          }
-        }
+      } else if (Date.now() - lastKeystrokeTime < 500) {
+        this.state = "knead";
       } else {
-        // Pinned manual action selected via dropdown
-        this.state = currentAction;
+        if (this.state === "knead") {
+          this.state = currentAction === "auto" ? "idle" : currentAction;
+          this.behaviorTimer = 40 + Math.random() * 60;
+        }
+        if (currentAction === "auto") {
+          this.behaviorTimer--;
+          
+          if (this.state === "walk" && this.walkTargetX !== null) {
+            const dx = this.walkTargetX - this.x;
+            if (Math.abs(dx) > 1) {
+              const speed = 0.8 * this.petSpeedFactor;
+              this.x += Math.sign(dx) * speed;
+              this.facing = dx > 0 ? "right" : "left";
+              
+              // Wall climbing trigger: if we hit a wall while walking
+              if ((this.x <= 0 || this.x >= screenWidth - this.width) && Math.random() < 0.22) {
+                this.state = "climb";
+                this.climbSpeed = (0.6 + Math.random() * 0.7) * this.petSpeedFactor;
+                this.walkTargetX = null;
+              }
+            } else {
+              this.walkTargetX = null;
+              this.state = "idle";
+              this.behaviorTimer = 100 + Math.random() * 100;
+            }
+          }
+          
+          if (this.behaviorTimer <= 0) {
+            const r = Math.random();
+            if (r < 0.35) {
+              this.state = "walk";
+              const offset = (Math.random() - 0.5) * 140;
+              this.walkTargetX = Math.max(0, Math.min(screenWidth - this.width, this.anchorX + offset));
+              this.behaviorTimer = 150 + Math.random() * 100;
+            } else if (r < 0.65) {
+              this.state = "idle";
+              this.behaviorTimer = 120 + Math.random() * 120;
+            } else if (r < 0.80) {
+              this.state = "think";
+              this.behaviorTimer = 180 + Math.random() * 100;
+            } else if (r < 0.95) {
+              this.state = "eat";
+              this.behaviorTimer = 200 + Math.random() * 100;
+            } else {
+              this.state = "sleep";
+              this.behaviorTimer = 250 + Math.random() * 150;
+            }
+          }
+        } else {
+          this.state = currentAction;
+        }
       }
     }
 
@@ -372,7 +473,7 @@ class DesktopPet {
     }
 
     // Adjust facing direction based on cursor position when active
-    if (mouseIdleTicks < 300 && this.state !== "sleep") {
+    if (mouseIdleTicks < 300 && this.state !== "sleep" && this.state !== "climb") {
       const dx = mouseX - (this.x + this.width / 2);
       if (Math.abs(dx) > 10) {
         this.facing = dx > 0 ? "right" : "left";
@@ -392,7 +493,8 @@ class DesktopPet {
       SPRITE_CONFIG.animations[this.state] || SPRITE_CONFIG.animations.idle;
 
     this.animTick++;
-    if (this.animTick >= animConfig.speed) {
+    const effectiveSpeed = Math.max(1, Math.round(animConfig.speed / petSpeedFactor));
+    if (this.animTick >= effectiveSpeed) {
       this.animTick = 0;
       this.animFrameIndex = (this.animFrameIndex + 1) % animConfig.frameCount;
     }
@@ -419,8 +521,16 @@ class DesktopPet {
   draw(ctx) {
     ctx.save();
 
-    // No skin filters to optimize RAM
-    ctx.filter = "none";
+    // Skin filters based on selected skin
+    if (currentSkin === "cyber") {
+      ctx.filter = "hue-rotate(120deg) saturate(220%) brightness(120%)";
+    } else if (currentSkin === "ghost") {
+      ctx.filter = "invert(0.9) opacity(0.65) drop-shadow(0px 0px 4px rgba(56, 189, 248, 0.8))";
+    } else if (currentSkin === "gold") {
+      ctx.filter = "sepia(1) saturate(550%) hue-rotate(5deg) brightness(1.05) contrast(1.2)";
+    } else {
+      ctx.filter = "none";
+    }
 
     // Wobble Kneading Animation
     let kneadAngle = 0;
@@ -471,6 +581,10 @@ class DesktopPet {
     } else if (this.state === "think") {
       const tilt = 0.08 + Math.sin(Date.now() * 0.003) * 0.03;
       ctx.rotate(this.facing === "right" ? tilt : -tilt);
+    } else if (this.state === "climb") {
+      const angle = this.x < screenWidth / 2 ? Math.PI / 2 : -Math.PI / 2;
+      ctx.rotate(angle);
+      ctx.translate(this.x < screenWidth / 2 ? -this.width * 0.4 : this.width * 0.4, 0);
     }
 
     ctx.translate(-this.width / 2, -this.height);
@@ -484,8 +598,19 @@ class DesktopPet {
       const row = animConfig.row;
       const col = this.animFrameIndex;
 
-      const sx = col * SPRITE_CONFIG.frameWidth;
-      const sy = row * SPRITE_CONFIG.frameHeight;
+      let activeImage = spriteSheetImage;
+      let fWidth = SPRITE_CONFIG.frameWidth;
+      let fHeight = SPRITE_CONFIG.frameHeight;
+      let rowVal = row;
+
+      if (currentSkin === "custom" && isCustomLoaded && customSpriteImage) {
+        activeImage = customSpriteImage;
+        const cRows = parseInt(document.getElementById("custom-rows").value) || 8;
+        const cCols = parseInt(document.getElementById("custom-cols").value) || 8;
+        fWidth = customSpriteImage.width / cCols;
+        fHeight = customSpriteImage.height / cRows;
+        rowVal = Math.min(row, cRows - 1);
+      }
 
       ctx.save();
       if (this.facing === "left") {
@@ -494,11 +619,11 @@ class DesktopPet {
       }
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(
-        spriteSheetImage,
-        sx,
-        sy,
-        SPRITE_CONFIG.frameWidth,
-        SPRITE_CONFIG.frameHeight,
+        activeImage,
+        col * fWidth,
+        rowVal * fHeight,
+        fWidth,
+        fHeight,
         0,
         0,
         this.width,
@@ -621,7 +746,7 @@ class DesktopPet {
     }
 
     // Draw Universal Keyboard if typing
-    const isTypingActive = Date.now() - lastKeystrokeTime < 300;
+    const isTypingActive = Date.now() - lastKeystrokeTime < 500;
     if (this.state === "knead" && isTypingActive) {
       const s = this.width / 64;
       let bY = 0;
@@ -1236,8 +1361,9 @@ const codeChars = ["{", "}", "(", ")", ";", "<", ">", "/", "+", "=", "-", "*", "
 if (window.electronAPI && window.electronAPI.onGlobalKeydown) {
   window.electronAPI.onGlobalKeydown((e) => {
     lastKeystrokeTime = Date.now();
+    keyTimestamps.push(Date.now()); // Record keystroke for KPM calculation
     typingHeat = Math.min(typingHeat + 15, 200);
-    if (pet.state !== "knead" && pet.state !== "sleep") {
+    if (pet.state !== "knead" && pet.state !== "sleep" && pet.state !== "climb" && pet.state !== "drag") {
       pet.state = "knead";
       pet.vx = 0;
       pet.vy = 0;
@@ -1252,6 +1378,12 @@ if (window.electronAPI && window.electronAPI.onGlobalKeydown) {
   });
 }
 
+// Track click rate
+window.addEventListener("click", () => {
+  totalClicks++;
+  clickTimestamps.push(Date.now());
+});
+
 let activeReminder = null;
 let alarmResetTimeout = null;
 
@@ -1260,10 +1392,19 @@ let alarmResetTimeout = null;
 // ==========================================
 const uiPanel = document.getElementById("ui-panel");
 const minimizeBtn = document.getElementById("minimize-btn");
+const closeBtn = document.getElementById("close-btn");
 
 minimizeBtn.addEventListener("click", () => {
   uiPanel.classList.toggle("minimized");
 });
+
+if (closeBtn) {
+  closeBtn.addEventListener("click", () => {
+    if (window.electronAPI && window.electronAPI.closeApp) {
+      window.electronAPI.closeApp();
+    }
+  });
+}
 
 const panelHeader = uiPanel.querySelector(".panel-header");
 let isPanelDragging = false;
@@ -1493,6 +1634,322 @@ document.getElementById("alarm-btn").addEventListener("click", () => {
   showGreetingBubble(`Alarm set for ${formattedTime}! ⏰`, 4000);
 });
 
+// Hydration / Water Reminder
+let waterInterval = null;
+let waterRemaining = 0;
+let waterTimerState = "none";
+
+document.getElementById("water-timer-btn").addEventListener("click", () => {
+  const btn = document.getElementById("water-timer-btn");
+  const select = document.getElementById("water-input");
+  
+  if (waterTimerState === "none") {
+    const mins = parseInt(select.value, 10) || 30;
+    waterTimerState = "running";
+    waterRemaining = mins * 60;
+    btn.textContent = "Stop";
+    btn.classList.add("timer-running");
+    showGreetingBubble(`Drink water set for ${mins} mins! 💧`, 3500);
+    
+    waterInterval = setInterval(() => {
+      if (waterRemaining > 0) {
+        waterRemaining--;
+      } else {
+        showGreetingBubble("💧 Hydration Time! Drink water! 💧", 10000);
+        pet.twitchOverrideState = "stretch";
+        pet.twitchOverrideTimer = 200;
+        
+        for (let i = 0; i < 25; i++) {
+          spawnParticle(
+            pet.x + pet.width / 2 + (Math.random() - 0.5) * 20,
+            pet.y + 10,
+            "water"
+          );
+        }
+        waterRemaining = mins * 60;
+      }
+    }, 1000);
+  } else {
+    clearInterval(waterInterval);
+    waterTimerState = "none";
+    btn.textContent = "Start";
+    btn.classList.remove("timer-running");
+    showGreetingBubble("Water timer stopped. 🔕", 3000);
+  }
+});
+
+// Tab Switching
+const tabButtons = document.querySelectorAll(".tab-btn");
+const tabContents = document.querySelectorAll(".tab-content");
+
+tabButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    const tabName = btn.getAttribute("data-tab");
+    
+    tabButtons.forEach(b => b.classList.remove("active"));
+    tabContents.forEach(c => c.classList.remove("active"));
+    
+    btn.classList.add("active");
+    const activeTab = document.getElementById(`${tabName}-tab`);
+    if (activeTab) activeTab.classList.add("active");
+  });
+});
+
+// Mascot Settings Scale & Speed Sliders
+document.getElementById("pet-scale").addEventListener("input", (e) => {
+  const val = parseFloat(e.target.value);
+  petScale = val;
+  pet.width = SPRITE_CONFIG.renderWidth * val;
+  pet.height = SPRITE_CONFIG.renderHeight * val;
+  document.getElementById("scale-val").textContent = `${val.toFixed(1)}x`;
+});
+
+document.getElementById("pet-speed").addEventListener("input", (e) => {
+  const val = parseFloat(e.target.value);
+  petSpeedFactor = val;
+  document.getElementById("speed-val").textContent = `${val.toFixed(1)}x`;
+});
+
+// Skin Selection Custom File Loader
+const skinSelect = document.getElementById("skin-select");
+const customSkinContainer = document.getElementById("custom-skin-container");
+
+skinSelect.addEventListener("change", (e) => {
+  currentSkin = e.target.value;
+  if (currentSkin === "custom") {
+    customSkinContainer.style.display = "flex";
+  } else {
+    customSkinContainer.style.display = "none";
+  }
+});
+
+const customSkinFile = document.getElementById("custom-skin-file");
+customSkinFile.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      customSpriteImage = new Image();
+      customSpriteImage.onload = () => {
+        isCustomLoaded = true;
+        showGreetingBubble("Custom sprite sheet loaded! 🎨", 3500);
+      };
+      customSpriteImage.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+// Todo List Persistence
+let todos = [];
+
+function loadTodos() {
+  try {
+    const stored = localStorage.getItem("paendeo_todos");
+    if (stored) todos = JSON.parse(stored);
+  } catch (err) {
+    todos = [];
+  }
+  renderTodos();
+}
+
+function saveTodos() {
+  localStorage.setItem("paendeo_todos", JSON.stringify(todos));
+}
+
+function renderTodos() {
+  const todoListContainer = document.getElementById("todo-list");
+  todoListContainer.innerHTML = "";
+  
+  todos.forEach((todo, idx) => {
+    const item = document.createElement("div");
+    item.className = "todo-item";
+    
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "todo-checkbox";
+    checkbox.checked = todo.completed;
+    checkbox.addEventListener("change", () => {
+      todo.completed = checkbox.checked;
+      saveTodos();
+      renderTodos();
+    });
+    
+    const textSpan = document.createElement("span");
+    textSpan.textContent = todo.text;
+    if (todo.completed) textSpan.className = "completed";
+    
+    const delBtn = document.createElement("button");
+    delBtn.className = "todo-del-btn";
+    delBtn.innerHTML = "&times;";
+    delBtn.addEventListener("click", () => {
+      todos.splice(idx, 1);
+      saveTodos();
+      renderTodos();
+    });
+    
+    item.appendChild(checkbox);
+    item.appendChild(textSpan);
+    item.appendChild(delBtn);
+    todoListContainer.appendChild(item);
+  });
+}
+
+document.getElementById("todo-add-btn").addEventListener("click", () => {
+  const input = document.getElementById("todo-input");
+  const text = input.value.trim();
+  if (text) {
+    todos.push({ text, completed: false });
+    saveTodos();
+    renderTodos();
+    input.value = "";
+  }
+});
+
+document.getElementById("todo-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    document.getElementById("todo-add-btn").click();
+  }
+});
+
+// Notepad Scratchpad Persistence
+const scratchpad = document.getElementById("scratchpad");
+
+function loadNotepad() {
+  scratchpad.value = localStorage.getItem("paendeo_notepad") || "";
+}
+
+scratchpad.addEventListener("input", () => {
+  localStorage.setItem("paendeo_notepad", scratchpad.value);
+});
+
+// Twitch IRC WS Client
+let twitchSocket = null;
+let isTwitchConnected = false;
+
+function connectToTwitch(channelName) {
+  if (twitchSocket) twitchSocket.close();
+  
+  channelName = channelName.toLowerCase().trim();
+  if (!channelName) return;
+
+  const statusEl = document.getElementById("twitch-status");
+  statusEl.textContent = "Connecting...";
+  statusEl.style.color = "#fbbf24";
+
+  twitchSocket = new WebSocket("wss://irc-ws.chat.twitch.tv:443");
+
+  twitchSocket.onopen = () => {
+    twitchSocket.send("PASS oauth:987654321");
+    twitchSocket.send("NICK justinfan9876");
+    twitchSocket.send(`JOIN #${channelName}`);
+  };
+
+  twitchSocket.onmessage = (event) => {
+    const data = event.data;
+    if (data.startsWith("PING")) {
+      twitchSocket.send("PONG :tmi.twitch.tv");
+      return;
+    }
+    
+    const match = data.match(/:([^!]+)![^ ]+ PRIVMSG #[^ ]+ :(.+)/);
+    if (match) {
+      const username = match[1];
+      const message = match[2].trim();
+      handleTwitchMessage(username, message);
+    }
+  };
+
+  twitchSocket.onclose = () => {
+    isTwitchConnected = false;
+    statusEl.textContent = "Disconnected";
+    statusEl.style.color = "#ef4444";
+    document.getElementById("twitch-connect-btn").textContent = "Connect";
+  };
+
+  twitchSocket.onerror = (error) => {
+    console.error("Twitch WS Error:", error);
+    twitchSocket.close();
+  };
+  
+  isTwitchConnected = true;
+  statusEl.textContent = "Connected";
+  statusEl.style.color = "#10b981";
+  document.getElementById("twitch-connect-btn").textContent = "Disconnect";
+  showGreetingBubble(`Joined Twitch channel #${channelName}! 📡`, 4000);
+}
+
+function handleTwitchMessage(username, message) {
+  showGreetingBubble(`${username}: ${message}`, 7000);
+
+  const cleanMsg = message.toLowerCase().trim();
+  if (cleanMsg.startsWith("!")) {
+    const cmd = cleanMsg.split(" ")[0];
+    
+    if (cmd === "!eat") {
+      pet.twitchOverrideState = "eat";
+      pet.twitchOverrideTimer = 180;
+      showGreetingBubble(`🐼 Mascot eating bamboo for ${username}!`, 4000);
+    } else if (cmd === "!sleep") {
+      pet.twitchOverrideState = "sleep";
+      pet.twitchOverrideTimer = 240;
+      showGreetingBubble(`💤 Mascot going to sleep for ${username}...`, 4000);
+    } else if (cmd === "!jump" || cmd === "!hop") {
+      pet.hopVelocity = -9.5;
+      showGreetingBubble(`🚀 Jump! Thanks ${username}!`, 3000);
+    } else if (cmd === "!pet") {
+      pettingMeter = 10;
+      pet.twitchOverrideState = "sleep";
+      pet.twitchOverrideTimer = 120;
+      for (let i = 0; i < 6; i++) {
+        spawnParticle(
+          pet.x + pet.width / 2 + (Math.random() - 0.5) * 15,
+          pet.y + 10,
+          "heart"
+        );
+      }
+      showGreetingBubble(`❤️ Petting mascot from ${username}!`, 4000);
+    } else if (cmd === "!think") {
+      pet.twitchOverrideState = "think";
+      pet.twitchOverrideTimer = 150;
+    }
+  }
+}
+
+document.getElementById("sim-send-btn").addEventListener("click", () => {
+  const username = document.getElementById("sim-user").value.trim() || "MascotFan";
+  const message = document.getElementById("sim-msg").value.trim();
+  if (message) {
+    handleTwitchMessage(username, message);
+    document.getElementById("sim-msg").value = "";
+  }
+});
+
+document.getElementById("sim-msg").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    document.getElementById("sim-send-btn").click();
+  }
+});
+
+document.getElementById("twitch-connect-btn").addEventListener("click", () => {
+  const channelInput = document.getElementById("twitch-channel");
+  const channelName = channelInput.value.trim();
+  
+  if (isTwitchConnected) {
+    if (twitchSocket) twitchSocket.close();
+  } else {
+    if (!channelName) {
+      showGreetingBubble("Please enter channel name! 📡", 3000);
+      return;
+    }
+    connectToTwitch(channelName);
+  }
+});
+
+// Load Todo & Scratchpad
+loadTodos();
+loadNotepad();
+
 // Periodic programmatic V8 garbage collection to optimize RAM
 setInterval(() => {
   if (window.gc) {
@@ -1540,6 +1997,26 @@ function gameLoop(timestamp) {
     typingHeat -= 1.2;
     if (typingHeat < 0) typingHeat = 0;
   }
+
+  // Real-time Stats update
+  const nowMs = Date.now();
+  clickTimestamps = clickTimestamps.filter(t => nowMs - t < 60000);
+  keyTimestamps = keyTimestamps.filter(t => nowMs - t < 60000);
+  
+  const cpm = clickTimestamps.length;
+  const kpm = keyTimestamps.length;
+  
+  const statKpmEl = document.getElementById("stat-kpm");
+  if (statKpmEl) statKpmEl.textContent = `${kpm} KPM`;
+  
+  const statCpmEl = document.getElementById("stat-cpm");
+  if (statCpmEl) statCpmEl.textContent = `${cpm} CPM`;
+  
+  const statClicksEl = document.getElementById("stat-clicks");
+  if (statClicksEl) statClicksEl.textContent = totalClicks;
+  
+  const statStateEl = document.getElementById("stat-state");
+  if (statStateEl) statStateEl.textContent = pet.state;
 
   // 1-Minute Warning & Alarm Check
   if (activeReminder) {
@@ -1630,7 +2107,7 @@ function gameLoop(timestamp) {
   // Update pet state & coordinates
   pet.update(currentMouseX, currentMouseY);
 
-  // Draw the pet directly without filters to optimize RAM
+  // Draw the pet directly
   pet.draw(ctx);
 
   // Fast Overheat Tint

@@ -12,72 +12,203 @@
   <!-- Transparent canvas for desktop pet rendering -->
   <canvas id="petCanvas"></canvas>
 
-  <!-- Glassmorphic Dashboard UI Panel (Merged) -->
+  <!-- Glassmorphic Dashboard UI Panel -->
   <div id="ui-panel">
     <div class="panel-header">
-      <h3>🐼 Paendeo</h3>
-      <button id="minimize-btn" class="minimize-btn" title="Minimize Dashboard">
-        <svg class="icon-minus" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        <svg class="icon-plus" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-      </button>
+      <h3>🐼 Paendeo Engine</h3>
+      <div class="panel-controls" style="display: flex; gap: 4px;">
+        <button id="minimize-btn" class="minimize-btn" title="Minimize Dashboard">
+          <svg class="icon-minus" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <svg class="icon-plus" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+        <button id="close-btn" class="minimize-btn" title="Close Application" style="color: #f43f5e; border-color: rgba(244, 63, 94, 0.2); background: rgba(244, 63, 94, 0.08);">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabs Navigation Bar -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" data-tab="dashboard">Stats</button>
+      <button class="tab-btn" data-tab="mascot">Mascot</button>
+      <button class="tab-btn" data-tab="utilities">Utils</button>
+      <button class="tab-btn" data-tab="tasks">Tasks</button>
+      <button class="tab-btn" data-tab="stream">Stream</button>
     </div>
 
     <div class="panel-content">
-      <div class="control-row">
-        <span>Action State:</span>
-        <select id="action-select" class="premium-select">
-          <option value="auto">Auto Behavior</option>
-          <option value="idle">Idle / Active</option>
-          <option value="think">Thinking</option>
-          <option value="eat">Eating Bamboo</option>
-          <option value="sleep">Sleeping</option>
-        </select>
-      </div>
+      <!-- 1. Dashboard / Stats Tab -->
+      <div id="dashboard-tab" class="tab-content active">
+        <div class="control-row">
+          <span>Action:</span>
+          <select id="action-select" class="premium-select">
+            <option value="auto">Auto Behavior</option>
+            <option value="idle">Idle / Active</option>
+            <option value="think">Thinking</option>
+            <option value="eat">Eating Bamboo</option>
+            <option value="sleep">Sleeping</option>
+          </select>
+        </div>
 
-      <div class="control-row">
-        <span>Your Name:</span>
-        <input type="text" id="name-input" class="premium-input" placeholder="Tell your name..." maxlength="12">
-      </div>
+        <div class="control-row">
+          <span>Rename:</span>
+          <input type="text" id="name-input" class="premium-input" placeholder="Mascot name..." maxlength="12">
+        </div>
 
-      <div class="control-row">
-        <span>Pin a Note:</span>
-        <input type="text" id="note-input" class="premium-input" placeholder="Type a message..." maxlength="30">
-      </div>
+        <div class="control-row">
+          <span>Pin Note:</span>
+          <input type="text" id="note-input" class="premium-input" placeholder="Type a bubble note..." maxlength="30">
+        </div>
 
-      <div class="control-row">
-        <span>Focus Mode:</span>
-        <button id="pomodoro-btn" class="premium-btn">Start Pomodoro</button>
-      </div>
-
-      <div class="control-row">
-        <span>Stretch Timer:</span>
-        <div style="display: flex; gap: 4px; align-items: center; width: 150px;">
-          <input type="number" id="stretch-input" class="premium-input" style="width: 40px; padding: 4px;" value="30" min="1" max="120">
-          <span style="font-size: 10px; margin-right: 4px;">min</span>
-          <button id="stretch-timer-btn" class="premium-btn" style="flex: 1; padding: 4px;">Start</button>
+        <hr class="divider">
+        
+        <div class="stats-section">
+          <h4 style="margin: 0 0 8px 0; color: #a78bfa; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Live Engine Stats</h4>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="stat-label">Keystroke Rate</span>
+              <span id="stat-kpm" class="stat-val">0 KPM</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Click Rate</span>
+              <span id="stat-cpm" class="stat-val">0 CPM</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Total Clicks</span>
+              <span id="stat-clicks" class="stat-val">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">State</span>
+              <span id="stat-state" class="stat-val" style="color: #38bdf8;">idle</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="control-row">
-        <span>Set Reminder:</span>
-        <div style="display: flex; flex-direction: column; gap: 4px; width: 150px;">
-          <input type="time" id="alarm-time" class="premium-input" style="padding: 4px; width: 100%; box-sizing: border-box;">
-          <input type="text" id="alarm-topic" class="premium-input" placeholder="Topic..." maxlength="20" style="padding: 4px; width: 100%; box-sizing: border-box;">
-          <button id="alarm-btn" class="premium-btn" style="padding: 4px; width: 100%;">Set Alarm</button>
+      <!-- 2. Mascot Settings Tab -->
+      <div id="mascot-tab" class="tab-content">
+        <div class="control-row">
+          <span>Size Scale:</span>
+          <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+            <input type="range" id="pet-scale" min="0.5" max="3.0" step="0.1" value="1.0" style="flex: 1; accent-color: #818cf8;">
+            <span id="scale-val" style="font-size: 11px; min-width: 28px;">1.0x</span>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <span>Pace Speed:</span>
+          <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+            <input type="range" id="pet-speed" min="0.5" max="2.5" step="0.1" value="1.0" style="flex: 1; accent-color: #818cf8;">
+            <span id="speed-val" style="font-size: 11px; min-width: 28px;">1.0x</span>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <span>Skin Filter:</span>
+          <select id="skin-select" class="premium-select">
+            <option value="normal">Classic Mascot</option>
+            <option value="cyber">Cyberpunk Neon</option>
+            <option value="ghost">Ethereal Ghost</option>
+            <option value="gold">Golden Trophy</option>
+            <option value="custom">Custom Sprite Sheet</option>
+          </select>
+        </div>
+
+        <div id="custom-skin-container" style="display: none; flex-direction: column; gap: 6px; padding: 8px; border-radius: 6px; background: rgba(0,0,0,0.2); margin-top: 8px;">
+          <h5 style="margin: 0; color: #a78bfa; font-size: 10px;">CUSTOM SPRITE SHEET</h5>
+          <input type="file" id="custom-skin-file" accept="image/*" class="premium-file-input">
+          <div style="display: flex; gap: 4px;">
+            <div style="flex: 1;">
+              <span style="font-size: 9px; opacity: 0.8;">Rows:</span>
+              <input type="number" id="custom-rows" class="premium-input" style="width: 100%; padding: 2px;" value="8" min="1">
+            </div>
+            <div style="flex: 1;">
+              <span style="font-size: 9px; opacity: 0.8;">Cols:</span>
+              <input type="number" id="custom-cols" class="premium-input" style="width: 100%; padding: 2px;" value="8" min="1">
+            </div>
+          </div>
         </div>
       </div>
 
-      <hr class="divider">
+      <!-- 3. Utilities Tab -->
+      <div id="utilities-tab" class="tab-content">
+        <div class="control-row">
+          <span>Focus Mode:</span>
+          <button id="pomodoro-btn" class="premium-btn">Start Pomodoro</button>
+        </div>
 
-      <div class="instructions">
-        <p>🖱️ <b>Wiggle mouse</b> over head to pet him (hearts!).</p>
-        <p>⌨️ <b>Type or Code</b> to watch him knead (Overheats!).</p>
-        <p>🚀 <b>Drag pet</b> to position him anywhere on screen!</p>
+        <div class="control-row">
+          <span>Stretch:</span>
+          <div style="display: flex; gap: 4px; align-items: center; flex: 1;">
+            <input type="number" id="stretch-input" class="premium-input" style="width: 42px; padding: 4px;" value="30" min="1" max="120">
+            <span style="font-size: 10px;">min</span>
+            <button id="stretch-timer-btn" class="premium-btn" style="flex: 1; padding: 4px;">Start</button>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <span>Hydration:</span>
+          <div style="display: flex; gap: 4px; align-items: center; flex: 1;">
+            <select id="water-input" class="premium-select" style="padding: 4px; width: 68px;">
+              <option value="15">15m</option>
+              <option value="30" selected>30m</option>
+              <option value="45">45m</option>
+              <option value="60">60m</option>
+            </select>
+            <button id="water-timer-btn" class="premium-btn" style="flex: 1; padding: 4px;">Start</button>
+          </div>
+        </div>
+
+        <div class="control-row" style="align-items: flex-start;">
+          <span>Set Alarm:</span>
+          <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+            <input type="time" id="alarm-time" class="premium-input" style="padding: 4px; width: 100%; box-sizing: border-box;">
+            <input type="text" id="alarm-topic" class="premium-input" placeholder="Alarm topic..." maxlength="20" style="padding: 4px; width: 100%; box-sizing: border-box;">
+            <button id="alarm-btn" class="premium-btn" style="padding: 4px; width: 100%;">Set Alarm</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Tasks & Notepad Tab -->
+      <div id="tasks-tab" class="tab-content">
+        <h4 style="margin: 0 0 6px 0; color: #a78bfa; font-size: 11px;">Mascot Todo List</h4>
+        <div style="display: flex; gap: 4px; margin-bottom: 8px;">
+          <input type="text" id="todo-input" class="premium-input" style="flex: 1;" placeholder="New task..." maxlength="30">
+          <button id="todo-add-btn" class="premium-btn" style="padding: 0 10px;">+</button>
+        </div>
+        <div id="todo-list" style="max-height: 80px; overflow-y: auto; margin-bottom: 10px; border-radius: 4px; background: rgba(0,0,0,0.15); padding: 4px;">
+          <!-- Todos get injected here -->
+        </div>
+
+        <h4 style="margin: 0 0 6px 0; color: #a78bfa; font-size: 11px;">Quick Scratchpad</h4>
+        <textarea id="scratchpad" class="premium-textarea" placeholder="Type notes here... Saves automatically!" rows="3" style="width: 100%; box-sizing: border-box;"></textarea>
+      </div>
+
+      <!-- 5. Stream Mode Tab -->
+      <div id="stream-tab" class="tab-content">
+        <h4 style="margin: 0 0 6px 0; color: #a78bfa; font-size: 11px;">Twitch Chat Overlay</h4>
+        <div class="control-row" style="margin-bottom: 6px;">
+          <input type="text" id="twitch-channel" class="premium-input" style="flex: 1;" placeholder="Twitch Channel Name">
+          <button id="twitch-connect-btn" class="premium-btn" style="padding: 0 8px;">Connect</button>
+        </div>
+        <div style="font-size: 9px; margin-bottom: 8px; color: #94a3b8; display: flex; align-items: center; gap: 4px;">
+          Status: <span id="twitch-status" style="color: #ef4444; font-weight: bold;">Disconnected</span>
+        </div>
+
+        <h4 style="margin: 0 0 4px 0; color: #a78bfa; font-size: 11px;">Local Simulator</h4>
+        <div style="display: flex; flex-direction: column; gap: 4px; background: rgba(0,0,0,0.2); padding: 6px; border-radius: 6px;">
+          <input type="text" id="sim-user" class="premium-input" style="padding: 3px;" placeholder="Sim Username (e.g. ChatUser)" value="MascotFan">
+          <input type="text" id="sim-msg" class="premium-input" style="padding: 3px;" placeholder="Message (try !eat, !sleep, !jump)">
+          <button id="sim-send-btn" class="premium-btn" style="padding: 4px;">Simulate Chat Message</button>
+        </div>
       </div>
     </div>
   </div>
@@ -85,4 +216,4 @@
   <script src="renderer.js"></script>
 </body>
 
-</html>
+</html>
