@@ -4,6 +4,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   setIgnoreMouse: (ignore) => {
     ipcRenderer.send("set-ignore-mouse-events", ignore, { forward: true });
   },
+  closeApp: () => {
+    ipcRenderer.send("close-app");
+  },
   getScreenDimensions: () => {
     return ipcRenderer.invoke("get-screen-dimensions");
   },

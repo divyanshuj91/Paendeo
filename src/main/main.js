@@ -46,6 +46,10 @@ function createWindow() {
     }
   });
 
+  ipcMain.on("close-app", () => {
+    app.quit();
+  });
+
   ipcMain.handle("get-screen-dimensions", () => {
     return { width, height };
   });
