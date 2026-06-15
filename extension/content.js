@@ -72,6 +72,17 @@
     screenHeight = window.innerHeight;
     canvas.width = screenWidth;
     canvas.height = screenHeight;
+
+    // Reposition pet based on screen ratios if we have them
+    if (typeof pet !== "undefined" && pet) {
+      if (pet.anchorXRatio !== undefined && pet.anchorYRatio !== undefined) {
+        pet.x = pet.anchorXRatio * screenWidth;
+        pet.y = pet.anchorYRatio * screenHeight;
+        pet.keepInBounds();
+        pet.anchorX = pet.x;
+        pet.anchorY = pet.y;
+      }
+    }
   }
   window.addEventListener("resize", resizeCanvas);
   resizeCanvas();
@@ -256,6 +267,8 @@
 
       this.anchorX = this.x;
       this.anchorY = this.y;
+      this.anchorXRatio = this.anchorX / screenWidth;
+      this.anchorYRatio = this.anchorY / screenHeight;
       this.afkSleepActive = false;
 
       this.state = "idle";
@@ -317,55 +330,8 @@
         return;
       }
 
-      // 2. Falling / Gravity physics
-      const isFalling = this.y < (screenHeight - this.height) && this.state !== "climb";
-      if (isFalling) {
-        this.vy += 0.55;
-        this.vx *= 0.98;
-        this.x += this.vx;
-        this.y += this.vy;
-        this.state = "float";
-
-        if (this.y >= screenHeight - this.height) {
-          this.y = screenHeight - this.height;
-          if (Math.abs(this.vy) > 3.0) {
-            this.vy = -this.vy * 0.32;
-            this.vx *= 0.6;
-            for (let i = 0; i < 4; i++) {
-              spawnParticle(this.x + this.width / 2 + (Math.random() - 0.5) * 10, this.y + this.height, "steam");
-            }
-          } else {
-            this.vy = 0;
-            this.vx = 0;
-            this.state = "idle";
-            this.anchorX = this.x;
-          }
-        }
-
-        if (this.x <= 0) {
-          this.x = 0;
-          this.vx = -this.vx * 0.45;
-        } else if (this.x >= screenWidth - this.width) {
-          this.x = screenWidth - this.width;
-          this.vx = -this.vx * 0.45;
-        }
-
-        this.updateAnimationFrame();
-        return;
-      }
-
-      // 3. Wall Climbing
-      if (this.state === "climb") {
-        this.y -= this.climbSpeed;
-        this.facing = this.x < screenWidth / 2 ? "left" : "right";
-        if (this.y < screenHeight * 0.35 || Math.random() < 0.007) {
-          this.state = "float";
-          this.vy = 0.5;
-          this.vx = this.x < screenWidth / 2 ? 2.5 : -2.5;
-        }
-        this.updateAnimationFrame();
-        return;
-      }
+      // 2. Falling / Gravity physics (Disabled for pinned widget mode)
+      // 3. Wall Climbing (Disabled for pinned widget mode)
 
       // 4. AFK Auto-Sleep detection
       const isAFK = (mouseIdleTicks > 1800) && (Date.now() - lastKeystrokeTime > 30000);
@@ -401,41 +367,23 @@
             this.state = "idle";
             this.behaviorTimer = 40 + Math.random() * 60;
           }
-          // Auto behavior AI
+          // Auto behavior AI (Pinned widget: no walking, only idle/think/eat/sleep at place)
           this.behaviorTimer--;
 
-          if (this.state === "walk" && this.walkTargetX !== null) {
-            const dx = this.walkTargetX - this.x;
-            if (Math.abs(dx) > 1) {
-              const speed = 0.8 * petSpeedFactor;
-              this.x += Math.sign(dx) * speed;
-              this.facing = dx > 0 ? "right" : "left";
-              if ((this.x <= 0 || this.x >= screenWidth - this.width) && Math.random() < 0.22) {
-                this.state = "climb";
-                this.climbSpeed = (0.6 + Math.random() * 0.7) * petSpeedFactor;
-                this.walkTargetX = null;
-              }
-            } else {
-              this.walkTargetX = null;
-              this.state = "idle";
-              this.behaviorTimer = 100 + Math.random() * 100;
-            }
+          if (this.state === "walk") {
+            this.state = "idle";
+            this.walkTargetX = null;
           }
 
           if (this.behaviorTimer <= 0) {
             const r = Math.random();
-            if (r < 0.35) {
-              this.state = "walk";
-              const offset = (Math.random() - 0.5) * 140;
-              this.walkTargetX = Math.max(0, Math.min(screenWidth - this.width, this.anchorX + offset));
-              this.behaviorTimer = 150 + Math.random() * 100;
-            } else if (r < 0.65) {
+            if (r < 0.60) {
               this.state = "idle";
               this.behaviorTimer = 120 + Math.random() * 120;
             } else if (r < 0.80) {
               this.state = "think";
               this.behaviorTimer = 180 + Math.random() * 100;
-            } else if (r < 0.95) {
+            } else if (r < 0.93) {
               this.state = "eat";
               this.behaviorTimer = 200 + Math.random() * 100;
             } else {
@@ -1081,6 +1029,18 @@
       pet.state = "idle";
       pet.anchorX = pet.x;
       pet.anchorY = pet.y;
+      pet.anchorXRatio = pet.x / screenWidth;
+      pet.anchorYRatio = pet.y / screenHeight;
+
+      // Save position to chrome.storage.local settings
+      chrome.storage.local.get(["settings"], (data) => {
+        const settings = data.settings || {};
+        settings.petPosition = {
+          xRatio: pet.anchorXRatio,
+          yRatio: pet.anchorYRatio
+        };
+        chrome.storage.local.set({ settings });
+      });
     }
   });
 
@@ -1458,6 +1418,17 @@
         pet.width = SPRITE_CONFIG.renderWidth * petScale;
         pet.height = SPRITE_CONFIG.renderHeight * petScale;
 
+        // Apply position
+        if (data.settings.petPosition) {
+          pet.anchorXRatio = data.settings.petPosition.xRatio;
+          pet.anchorYRatio = data.settings.petPosition.yRatio;
+          pet.x = pet.anchorXRatio * screenWidth;
+          pet.y = pet.anchorYRatio * screenHeight;
+          pet.keepInBounds();
+          pet.anchorX = pet.x;
+          pet.anchorY = pet.y;
+        }
+
         // Show/hide elements
         if (!petEnabled) {
           canvas.style.display = "none";
@@ -1486,6 +1457,17 @@
 
         pet.width = SPRITE_CONFIG.renderWidth * petScale;
         pet.height = SPRITE_CONFIG.renderHeight * petScale;
+
+        // Apply position
+        if (s.petPosition) {
+          pet.anchorXRatio = s.petPosition.xRatio;
+          pet.anchorYRatio = s.petPosition.yRatio;
+          pet.x = pet.anchorXRatio * screenWidth;
+          pet.y = pet.anchorYRatio * screenHeight;
+          pet.keepInBounds();
+          pet.anchorX = pet.x;
+          pet.anchorY = pet.y;
+        }
 
         canvas.style.display = petEnabled ? "" : "none";
         hitArea.style.display = petEnabled ? "" : "none";
