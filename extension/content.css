@@ -1,0 +1,288 @@
+/* ==========================================
+   PAENDEO EXTENSION — CONTENT SCRIPT STYLES
+   Canvas overlay + Usage HUD
+   ========================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+/* ==========================================
+   PET CANVAS OVERLAY
+   ========================================== */
+#paendeo-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2147483646;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+/* Invisible hit-test area over the pet for mouse interaction */
+#paendeo-hit-area {
+  position: fixed;
+  z-index: 2147483647;
+  pointer-events: auto;
+  cursor: grab;
+  border-radius: 8px;
+}
+
+#paendeo-hit-area:active {
+  cursor: grabbing;
+}
+
+/* ==========================================
+   USAGE HUD WIDGET
+   ========================================== */
+#paendeo-hud {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 2147483645;
+  width: 280px;
+  background: rgba(18, 18, 28, 0.82);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #e2e8f0;
+  padding: 0;
+  overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto;
+  user-select: none;
+  opacity: 0;
+  transform: translateY(-12px);
+  animation: paendeo-hud-enter 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.5s forwards;
+}
+
+@keyframes paendeo-hud-enter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Collapsed state — just a pill */
+#paendeo-hud.collapsed {
+  width: auto;
+  min-width: 120px;
+  border-radius: 24px;
+}
+
+#paendeo-hud.collapsed .paendeo-hud-body {
+  display: none;
+}
+
+#paendeo-hud.collapsed .paendeo-hud-header {
+  border-bottom: none;
+  padding: 8px 14px;
+}
+
+#paendeo-hud.hidden {
+  display: none !important;
+}
+
+/* ---- HUD Header ---- */
+.paendeo-hud-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: move;
+}
+
+.paendeo-hud-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.paendeo-hud-title .platform-icon {
+  font-size: 14px;
+}
+
+.paendeo-hud-title .model-name {
+  color: #a78bfa;
+  font-weight: 500;
+  font-size: 11px;
+}
+
+.paendeo-hud-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.paendeo-hud-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: #94a3b8;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  padding: 0;
+  line-height: 1;
+}
+
+.paendeo-hud-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+}
+
+/* ---- HUD Body ---- */
+.paendeo-hud-body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Token bar row */
+.paendeo-token-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.paendeo-token-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.paendeo-token-label .value {
+  font-weight: 600;
+  color: #e2e8f0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.paendeo-token-bar-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.paendeo-token-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              background 0.4s ease;
+  position: relative;
+}
+
+/* Color states for the bar */
+.paendeo-token-bar-fill.status-green {
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+}
+
+.paendeo-token-bar-fill.status-yellow {
+  background: linear-gradient(90deg, #eab308, #facc15);
+  box-shadow: 0 0 8px rgba(234, 179, 8, 0.4);
+}
+
+.paendeo-token-bar-fill.status-orange {
+  background: linear-gradient(90deg, #f97316, #fb923c);
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
+}
+
+.paendeo-token-bar-fill.status-red {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
+
+.paendeo-token-bar-fill.status-critical {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
+  animation: paendeo-pulse-bar 1.2s ease-in-out infinite;
+}
+
+@keyframes paendeo-pulse-bar {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ---- Status line ---- */
+.paendeo-status-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.paendeo-status-line.status-green { color: #4ade80; }
+.paendeo-status-line.status-yellow { color: #facc15; }
+.paendeo-status-line.status-orange { color: #fb923c; }
+.paendeo-status-line.status-red { color: #f87171; }
+.paendeo-status-line.status-critical {
+  color: #f87171;
+  animation: paendeo-pulse-text 1.2s ease-in-out infinite;
+}
+
+@keyframes paendeo-pulse-text {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ---- Collapsed pill badge ---- */
+.paendeo-hud-pill {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+#paendeo-hud.collapsed .paendeo-hud-pill {
+  display: flex;
+}
+
+#paendeo-hud.collapsed .paendeo-hud-title .model-name,
+#paendeo-hud.collapsed .paendeo-hud-controls {
+  display: none;
+}
+
+/* ==========================================
+   DRAGGING STATE
+   ========================================== */
+#paendeo-hud.dragging {
+  transition: none !important;
+  opacity: 0.9;
+}
+
+/* ==========================================
+   RESPONSIVE — smaller screens
+   ========================================== */
+@media (max-width: 600px) {
+  #paendeo-hud {
+    width: 240px;
+    right: 8px;
+    top: 8px;
+  }
+}
