@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=420" />
+  <title>Paendeo – Token Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div id="popup-root">
+
+    <!-- ═══════════ HEADER ═══════════ -->
+    <header id="header">
+      <div class="header-left">
+        <span class="header-emoji" id="header-panda">🐼</span>
+        <div class="header-text">
+          <h1 id="header-title">Paendeo</h1>
+          <p id="header-subtitle">Token Tracker</p>
+        </div>
+      </div>
+      <div class="header-pill" id="header-status-pill">
+        <span class="pulse-dot"></span>
+        <span>Live</span>
+      </div>
+    </header>
+
+    <!-- ═══════════ PLATFORM CARDS ═══════════ -->
+    <section id="platforms-section">
+
+      <!-- ChatGPT -->
+      <article class="platform-card" id="card-chatgpt" data-platform="chatgpt">
+        <div class="card-main" id="card-main-chatgpt">
+          <div class="card-ring-wrap">
+            <svg class="progress-ring" width="64" height="64" viewBox="0 0 64 64">
+              <circle class="ring-track" cx="32" cy="32" r="28" />
+              <circle class="ring-fill" id="ring-chatgpt" cx="32" cy="32" r="28" />
+            </svg>
+            <span class="ring-pct" id="pct-chatgpt">0%</span>
+          </div>
+          <div class="card-info">
+            <div class="card-name"><span class="card-icon">🤖</span> ChatGPT</div>
+            <div class="card-tokens" id="tokens-chatgpt">0 / 128K tokens</div>
+            <div class="card-messages" id="messages-chatgpt">0 / 80 messages today</div>
+          </div>
+          <div class="card-status-wrap">
+            <span class="card-status" id="status-chatgpt">Good</span>
+            <span class="card-expand-icon" id="expand-icon-chatgpt">▾</span>
+          </div>
+        </div>
+        <div class="card-drawer" id="drawer-chatgpt">
+          <div class="drawer-inner">
+            <label class="drawer-label">Tier
+              <select class="tier-select" id="tier-chatgpt">
+                <option value="free">Free</option>
+                <option value="plus">Plus</option>
+                <option value="pro">Pro</option>
+              </select>
+            </label>
+            <label class="drawer-label">Context Window
+              <input class="drawer-input" type="number" id="limit-context-chatgpt" min="1000" step="1000" />
+            </label>
+            <label class="drawer-label">Daily Messages
+              <input class="drawer-input" type="number" id="limit-messages-chatgpt" min="1" step="1" />
+            </label>
+            <button class="drawer-save" id="save-chatgpt">Save</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- Claude -->
+      <article class="platform-card" id="card-claude" data-platform="claude">
+        <div class="card-main" id="card-main-claude">
+          <div class="card-ring-wrap">
+            <svg class="progress-ring" width="64" height="64" viewBox="0 0 64 64">
+              <circle class="ring-track" cx="32" cy="32" r="28" />
+              <circle class="ring-fill" id="ring-claude" cx="32" cy="32" r="28" />
+            </svg>
+            <span class="ring-pct" id="pct-claude">0%</span>
+          </div>
+          <div class="card-info">
+            <div class="card-name"><span class="card-icon">🟣</span> Claude</div>
+            <div class="card-tokens" id="tokens-claude">0 / 200K tokens</div>
+            <div class="card-messages" id="messages-claude">0 / 45 messages today</div>
+          </div>
+          <div class="card-status-wrap">
+            <span class="card-status" id="status-claude">Good</span>
+            <span class="card-expand-icon" id="expand-icon-claude">▾</span>
+          </div>
+        </div>
+        <div class="card-drawer" id="drawer-claude">
+          <div class="drawer-inner">
+            <label class="drawer-label">Tier
+              <select class="tier-select" id="tier-claude">
+                <option value="free">Free</option>
+                <option value="plus">Plus</option>
+                <option value="pro">Pro</option>
+              </select>
+            </label>
+            <label class="drawer-label">Context Window
+              <input class="drawer-input" type="number" id="limit-context-claude" min="1000" step="1000" />
+            </label>
+            <label class="drawer-label">Daily Messages
+              <input class="drawer-input" type="number" id="limit-messages-claude" min="1" step="1" />
+            </label>
+            <button class="drawer-save" id="save-claude">Save</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- Gemini -->
+      <article class="platform-card" id="card-gemini" data-platform="gemini">
+        <div class="card-main" id="card-main-gemini">
+          <div class="card-ring-wrap">
+            <svg class="progress-ring" width="64" height="64" viewBox="0 0 64 64">
+              <circle class="ring-track" cx="32" cy="32" r="28" />
+              <circle class="ring-fill" id="ring-gemini" cx="32" cy="32" r="28" />
+            </svg>
+            <span class="ring-pct" id="pct-gemini">0%</span>
+          </div>
+          <div class="card-info">
+            <div class="card-name"><span class="card-icon">✨</span> Gemini</div>
+            <div class="card-tokens" id="tokens-gemini">0 / 1,000K tokens</div>
+            <div class="card-messages" id="messages-gemini">0 / 50 messages today</div>
+          </div>
+          <div class="card-status-wrap">
+            <span class="card-status" id="status-gemini">Good</span>
+            <span class="card-expand-icon" id="expand-icon-gemini">▾</span>
+          </div>
+        </div>
+        <div class="card-drawer" id="drawer-gemini">
+          <div class="drawer-inner">
+            <label class="drawer-label">Tier
+              <select class="tier-select" id="tier-gemini">
+                <option value="free">Free</option>
+                <option value="plus">Plus</option>
+                <option value="pro">Pro</option>
+              </select>
+            </label>
+            <label class="drawer-label">Context Window
+              <input class="drawer-input" type="number" id="limit-context-gemini" min="1000" step="1000" />
+            </label>
+            <label class="drawer-label">Daily Messages
+              <input class="drawer-input" type="number" id="limit-messages-gemini" min="1" step="1" />
+            </label>
+            <button class="drawer-save" id="save-gemini">Save</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- Grok -->
+      <article class="platform-card" id="card-grok" data-platform="grok">
+        <div class="card-main" id="card-main-grok">
+          <div class="card-ring-wrap">
+            <svg class="progress-ring" width="64" height="64" viewBox="0 0 64 64">
+              <circle class="ring-track" cx="32" cy="32" r="28" />
+              <circle class="ring-fill" id="ring-grok" cx="32" cy="32" r="28" />
+            </svg>
+            <span class="ring-pct" id="pct-grok">0%</span>
+          </div>
+          <div class="card-info">
+            <div class="card-name"><span class="card-icon">⚡</span> Grok</div>
+            <div class="card-tokens" id="tokens-grok">0 / 128K tokens</div>
+            <div class="card-messages" id="messages-grok">0 / 25 messages today</div>
+          </div>
+          <div class="card-status-wrap">
+            <span class="card-status" id="status-grok">Good</span>
+            <span class="card-expand-icon" id="expand-icon-grok">▾</span>
+          </div>
+        </div>
+        <div class="card-drawer" id="drawer-grok">
+          <div class="drawer-inner">
+            <label class="drawer-label">Tier
+              <select class="tier-select" id="tier-grok">
+                <option value="free">Free</option>
+                <option value="plus">Plus</option>
+                <option value="pro">Pro</option>
+              </select>
+            </label>
+            <label class="drawer-label">Context Window
+              <input class="drawer-input" type="number" id="limit-context-grok" min="1000" step="1000" />
+            </label>
+            <label class="drawer-label">Daily Messages
+              <input class="drawer-input" type="number" id="limit-messages-grok" min="1" step="1" />
+            </label>
+            <button class="drawer-save" id="save-grok">Save</button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- ═══════════ SETTINGS ═══════════ -->
+    <section id="settings-section">
+      <button class="settings-toggle" id="settings-toggle">
+        <span>⚙️ Settings</span>
+        <span class="settings-chevron" id="settings-chevron">▾</span>
+      </button>
+      <div class="settings-drawer" id="settings-drawer">
+        <div class="settings-inner">
+
+          <!-- Pet Enabled -->
+          <div class="setting-row" id="setting-pet-enabled">
+            <span class="setting-label">Pet Enabled</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggle-pet" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <!-- Scale -->
+          <div class="setting-row" id="setting-scale">
+            <span class="setting-label">Scale</span>
+            <div class="slider-wrap">
+              <input type="range" class="styled-range" id="slider-scale" min="0.5" max="3.0" step="0.1" value="1.0" />
+              <span class="slider-val" id="val-scale">1.0</span>
+            </div>
+          </div>
+
+          <!-- Speed -->
+          <div class="setting-row" id="setting-speed">
+            <span class="setting-label">Speed</span>
+            <div class="slider-wrap">
+              <input type="range" class="styled-range" id="slider-speed" min="0.5" max="2.5" step="0.1" value="1.0" />
+              <span class="slider-val" id="val-speed">1.0</span>
+            </div>
+          </div>
+
+          <!-- Skin -->
+          <div class="setting-row" id="setting-skin">
+            <span class="setting-label">Skin</span>
+            <select class="skin-select" id="select-skin">
+              <option value="normal">Classic</option>
+              <option value="cyber">Cyber</option>
+              <option value="ghost">Ghost</option>
+              <option value="gold">Gold</option>
+            </select>
+          </div>
+
+          <!-- Show HUD -->
+          <div class="setting-row" id="setting-hud">
+            <span class="setting-label">Show HUD</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggle-hud" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ FOOTER ═══════════ -->
+    <footer id="footer">
+      <button class="reset-btn" id="btn-reset">Reset Stats</button>
+      <p class="footer-note" id="footer-note">Stats reset daily at midnight</p>
+      <p class="footer-version" id="footer-version">v1.0.0</p>
+    </footer>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
