@@ -1422,6 +1422,7 @@
   // ==========================================
   // LOAD SETTINGS FROM STORAGE
   // ==========================================
+  let loadSettingsAttempts = 0;
   async function loadSettings() {
     try {
       const data = await chrome.runtime.sendMessage({ type: "GET_USAGE", payload: {} });
@@ -1452,16 +1453,21 @@
         }
 
         // Show/hide elements
-        if (!petEnabled) {
-          canvas.style.display = "none";
-          hitArea.style.display = "none";
-        }
+        canvas.style.display = petEnabled ? "" : "none";
+        hitArea.style.display = petEnabled ? "" : "none";
         const hud = document.getElementById("paendeo-hud");
-        if (hud && !showHUD) hud.classList.add("hidden");
+        if (hud) {
+          if (showHUD) hud.classList.remove("hidden");
+          else hud.classList.add("hidden");
+        }
       }
       updateHUD();
     } catch (e) {
-      // Extension context might not be ready yet
+      console.warn("Paendeo: Failed to load settings, retrying...", e);
+      loadSettingsAttempts++;
+      if (loadSettingsAttempts < 5) {
+        setTimeout(loadSettings, 2000);
+      }
     }
   }
 
