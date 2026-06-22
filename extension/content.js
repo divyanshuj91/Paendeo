@@ -55,14 +55,20 @@
   // ==========================================
   // CANVAS & DOM INJECTION
   // ==========================================
-  const canvas = document.createElement("canvas");
-  canvas.id = "paendeo-canvas";
-  document.body.appendChild(canvas);
+  let canvas = document.getElementById("paendeo-canvas");
+  if (!canvas) {
+    canvas = document.createElement("canvas");
+    canvas.id = "paendeo-canvas";
+    document.body.appendChild(canvas);
+  }
   const ctx = canvas.getContext("2d");
 
-  const hitArea = document.createElement("div");
-  hitArea.id = "paendeo-hit-area";
-  document.body.appendChild(hitArea);
+  let hitArea = document.getElementById("paendeo-hit-area");
+  if (!hitArea) {
+    hitArea = document.createElement("div");
+    hitArea.id = "paendeo-hit-area";
+    document.body.appendChild(hitArea);
+  }
 
   let screenWidth = window.innerWidth;
   let screenHeight = window.innerHeight;
@@ -1346,20 +1352,17 @@
   }
 
   // Set up MutationObserver to watch for new messages
-  function setupObserver() {
-    const selectors = MESSAGE_SELECTORS[PLATFORM];
-    if (!selectors) return;
+  let observer = null;
+  let observerDebounce = null;
 
-    // Find the container to observe
-    let container = null;
-    const containerSels = selectors.container.split(",").map(s => s.trim());
-    for (const sel of containerSels) {
-      container = document.querySelector(sel);
-      if (container) break;
+  function setupObserver(container) {
+    if (!container) return;
+
+    if (observer) {
+      observer.disconnect();
     }
-    if (!container) container = document.body;
 
-    const observer = new MutationObserver((mutations) => {
+    observer = new MutationObserver((mutations) => {
       let hasRelevant = false;
       for (const mutation of mutations) {
         if (mutation.addedNodes.length > 0 || mutation.type === "characterData") {
@@ -1384,16 +1387,35 @@
     });
   }
 
-  let observerDebounce = null;
-
   // Retry setup for SPAs that load content dynamically
   let setupAttempts = 0;
+  let isSuccessfullySetup = false;
+
   function trySetup() {
     scanConversation();
-    setupObserver();
+
+    // Find the container to observe
+    const selectors = MESSAGE_SELECTORS[PLATFORM];
+    if (selectors) {
+      let container = null;
+      const containerSels = selectors.container.split(",").map(s => s.trim());
+      for (const sel of containerSels) {
+        container = document.querySelector(sel);
+        if (container) break;
+      }
+
+      if (container) {
+        setupObserver(container);
+        isSuccessfullySetup = true;
+      } else {
+        // Fallback to body for now
+        setupObserver(document.body);
+      }
+    }
+
     setupAttempts++;
-    if (setupAttempts < 5) {
-      setTimeout(trySetup, 3000);
+    if (!isSuccessfullySetup && setupAttempts < 10) {
+      setTimeout(trySetup, 2000);
     }
   }
 

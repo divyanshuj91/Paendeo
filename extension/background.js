@@ -75,7 +75,7 @@ async function checkAndResetDaily() {
 
   if (data.lastResetDate === today) return;
 
-  const platforms = data.platforms || DEFAULT_STORAGE.platforms;
+  const platforms = JSON.parse(JSON.stringify(data.platforms || DEFAULT_STORAGE.platforms));
   for (const key of Object.keys(platforms)) {
     platforms[key].daily = {
       tokensSent: 0,
@@ -120,18 +120,30 @@ const TIER_LIMITS = {
 // MESSAGE HANDLERS
 // ==========================================
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  handleMessage(message, sender).then(sendResponse);
+  handleMessage(message, sender)
+    .then((response) => {
+      sendResponse(response || { success: true });
+    })
+    .catch((error) => {
+      console.error("Error handling message:", error);
+      sendResponse({ error: error.message || String(error) });
+    });
   return true; // Keep channel open for async response
 });
 
 async function handleMessage(message, sender) {
+  if (!message) {
+    return { error: "Empty message" };
+  }
+
   const { type, payload } = message;
+  const safePayload = payload || {};
 
   switch (type) {
     case "INCREMENT_TOKENS": {
-      const { platform, tokensSent, tokensReceived } = payload;
+      const { platform, tokensSent, tokensReceived } = safePayload;
       const data = await chrome.storage.local.get(["platforms", "lastResetDate"]);
-      const platforms = data.platforms || DEFAULT_STORAGE.platforms;
+      const platforms = JSON.parse(JSON.stringify(data.platforms || DEFAULT_STORAGE.platforms));
       const today = new Date().toISOString().split("T")[0];
 
       // Auto-reset if date changed
@@ -152,9 +164,9 @@ async function handleMessage(message, sender) {
     }
 
     case "UPDATE_CONVERSATION": {
-      const { platform, totalTokens, messageCount } = payload;
+      const { platform, totalTokens, messageCount } = safePayload;
       const data = await chrome.storage.local.get(["platforms"]);
-      const platforms = data.platforms || DEFAULT_STORAGE.platforms;
+      const platforms = JSON.parse(JSON.stringify(data.platforms || DEFAULT_STORAGE.platforms));
 
       if (platforms[platform]) {
         platforms[platform].conversation = { totalTokens, messageCount };
@@ -173,15 +185,15 @@ async function handleMessage(message, sender) {
     }
 
     case "UPDATE_SETTINGS": {
-      const { settings } = payload;
+      const { settings } = safePayload;
       await chrome.storage.local.set({ settings });
       return { success: true };
     }
 
     case "UPDATE_LIMITS": {
-      const { platform, limits } = payload;
+      const { platform, limits } = safePayload;
       const data = await chrome.storage.local.get(["platforms"]);
-      const platforms = data.platforms || DEFAULT_STORAGE.platforms;
+      const platforms = JSON.parse(JSON.stringify(data.platforms || DEFAULT_STORAGE.platforms));
 
       if (platforms[platform]) {
         platforms[platform].limits = { ...platforms[platform].limits, ...limits };
@@ -192,9 +204,9 @@ async function handleMessage(message, sender) {
     }
 
     case "UPDATE_TIER": {
-      const { platform, tier } = payload;
+      const { platform, tier } = safePayload;
       const data = await chrome.storage.local.get(["platforms"]);
-      const platforms = data.platforms || DEFAULT_STORAGE.platforms;
+      const platforms = JSON.parse(JSON.stringify(data.platforms || DEFAULT_STORAGE.platforms));
 
       if (platforms[platform] && TIER_LIMITS[platform]?.[tier]) {
         platforms[platform].limits = {
@@ -209,7 +221,7 @@ async function handleMessage(message, sender) {
 
     case "RESET_DAILY": {
       const data = await chrome.storage.local.get(["platforms"]);
-      const platforms = data.platforms || DEFAULT_STORAGE.platforms;
+      const platforms = JSON.parse(JSON.stringify(data.platforms || DEFAULT_STORAGE.platforms));
       const today = new Date().toISOString().split("T")[0];
 
       for (const key of Object.keys(platforms)) {
@@ -225,3 +237,4 @@ async function handleMessage(message, sender) {
       return { error: "Unknown message type" };
   }
 }
+
