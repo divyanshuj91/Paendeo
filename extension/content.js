@@ -1,22 +1,17 @@
-// ==========================================
-// PAENDEO BROWSER EXTENSION — CONTENT SCRIPT
-// Full pet engine + AI token tracker + Usage HUD
-// Ported from the Electron desktop app renderer.js
-// ==========================================
+
 
 (function () {
   "use strict";
 
-  // Prevent double-injection
+  
   if (window.__paendeoInjected) return;
   window.__paendeoInjected = true;
 
   let pet = null;
 
-
-  // ==========================================
-  // PLATFORM DETECTION
-  // ==========================================
+  
+  
+  
   function detectPlatform() {
     const host = window.location.hostname;
     if (host.includes("chatgpt.com") || host.includes("chat.openai.com")) return "chatgpt";
@@ -37,9 +32,9 @@
     grok: { name: "Grok", icon: "⚡", accent: "#1da1f2" }
   };
 
-  // ==========================================
-  // SPRITE SHEET CONFIGURATION
-  // ==========================================
+  
+  
+  
   const SPRITE_CONFIG = {
     frameWidth: 128,
     frameHeight: 128,
@@ -55,9 +50,9 @@
     },
   };
 
-  // ==========================================
-  // CANVAS & DOM INJECTION
-  // ==========================================
+  
+  
+  
   let canvas = document.getElementById("paendeo-canvas");
   if (!canvas) {
     canvas = document.createElement("canvas");
@@ -82,7 +77,7 @@
     canvas.width = screenWidth;
     canvas.height = screenHeight;
 
-    // Reposition pet based on screen ratios if we have them
+    
     if (typeof pet !== "undefined" && pet) {
       if (pet.anchorXRatio !== undefined && pet.anchorYRatio !== undefined) {
         pet.x = pet.anchorXRatio * screenWidth;
@@ -96,9 +91,9 @@
   window.addEventListener("resize", resizeCanvas);
   resizeCanvas();
 
-  // ==========================================
-  // SPRITE SHEET LOADER
-  // ==========================================
+  
+  
+  
   let spriteSheetImage = new Image();
   let isSpriteSheetLoaded = false;
 
@@ -110,9 +105,9 @@
   spriteSheetImage.onload = () => { isSpriteSheetLoaded = true; };
   spriteSheetImage.onerror = () => { console.warn("Paendeo: Sprite sheet not found, using fallback."); };
 
-  // ==========================================
-  // GLOBAL STATE
-  // ==========================================
+  
+  
+  
   let typingHeat = 0;
   let mouseIdleTicks = 0;
   let pettingMeter = 0;
@@ -123,18 +118,18 @@
   let petEnabled = true;
   let showHUD = true;
 
-  // Speech bubble state
+  
   let greetingText = "";
   let greetingTimer = 0;
 
   function showGreetingBubble(text, durationMs) {
     greetingText = text;
-    greetingTimer = Math.round(durationMs / 33.3); // 30fps ticks
+    greetingTimer = Math.round(durationMs / 33.3); 
   }
 
-  // ==========================================
-  // TOKEN TRACKING STATE
-  // ==========================================
+  
+  
+  
   let conversationTokens = 0;
   let conversationMessageCount = 0;
   let dailyUsage = { tokensSent: 0, tokensReceived: 0, messagesCount: 0 };
@@ -143,7 +138,7 @@
   let lastMessageCount = 0;
   let lastObservedTexts = new Set();
 
-  // Token usage reaction thresholds (already shown)
+  
   let shownThresholds = new Set();
 
   function estimateTokens(text) {
@@ -160,9 +155,9 @@
     return num.toString();
   }
 
-  // ==========================================
-  // PARTICLE SYSTEM
-  // ==========================================
+  
+  
+  
   const particles = [];
 
   class Particle {
@@ -259,9 +254,9 @@
     if (particles.length > 50) particles.shift();
   }
 
-  // ==========================================
-  // DESKTOP PET CLASS (Full physics port)
-  // ==========================================
+  
+  
+  
   class DesktopPet {
     constructor() {
       this.width = SPRITE_CONFIG.renderWidth;
@@ -304,13 +299,13 @@
       this.twitchOverrideTimer = 0;
       this.climbSpeed = 1.0;
 
-      // Token reaction override
+      
       this.tokenReactionState = null;
       this.tokenReactionTimer = 0;
     }
 
     update(mouseX, mouseY) {
-      // 1. Dragging physics override
+      
       if (this.isDragging) {
         this.vx = mouseX - this.prevMouseX;
         this.vy = mouseY - this.prevMouseY;
@@ -323,7 +318,7 @@
         return;
       }
 
-      // Token reaction override
+      
       if (this.tokenReactionTimer > 0) {
         this.tokenReactionTimer--;
         this.state = this.tokenReactionState;
@@ -332,17 +327,17 @@
         }
       }
 
-      // ALARM STATE
+      
       if (this.state === "alarm") {
         this.keepInBounds();
         this.updateAnimationFrame();
         return;
       }
 
-      // 2. Falling / Gravity physics (Disabled for pinned widget mode)
-      // 3. Wall Climbing (Disabled for pinned widget mode)
+      
+      
 
-      // 4. AFK Auto-Sleep detection
+      
       const isAFK = (mouseIdleTicks > 1800) && (Date.now() - lastKeystrokeTime > 30000);
       if (isAFK && !this.tokenReactionState) {
         if (!this.afkSleepActive) {
@@ -362,7 +357,7 @@
         return;
       }
 
-      // Petting / kneading reactions
+      
       if (!this.tokenReactionState) {
         if (pettingMeter > 8) {
           this.state = "sleep";
@@ -376,7 +371,7 @@
             this.state = "idle";
             this.behaviorTimer = 40 + Math.random() * 60;
           }
-          // Auto behavior AI (Pinned widget: no walking, only idle/think/eat/sleep at place)
+          
           this.behaviorTimer--;
 
           if (this.state === "walk") {
@@ -403,7 +398,7 @@
         }
       }
 
-      // Hop animation
+      
       if (this.hopOffset < 0 || this.hopVelocity !== 0) {
         this.hopOffset += this.hopVelocity;
         this.hopVelocity += 0.5;
@@ -413,7 +408,7 @@
         }
       }
 
-      // Eye tracking
+      
       let targetEyeX = 0;
       let targetEyeY = 0;
       if (mouseIdleTicks < 300) {
@@ -429,7 +424,7 @@
       this.eyeX += (targetEyeX - this.eyeX) * 0.15;
       this.eyeY += (targetEyeY - this.eyeY) * 0.15;
 
-      // Blinking
+      
       this.blinkTimer--;
       if (this.blinkTimer <= 0) {
         if (this.blinkTimer === 0) this.isBlinking = true;
@@ -439,7 +434,7 @@
         }
       }
 
-      // Facing direction
+      
       if (mouseIdleTicks < 300 && this.state !== "sleep" && this.state !== "climb") {
         const dx = mouseX - (this.x + this.width / 2);
         if (Math.abs(dx) > 10) {
@@ -447,7 +442,7 @@
         }
       }
 
-      // Scale animation
+      
       const targetScale = this.state === "stretch" ? 2.5 : 1.0;
       this.scaleFactor += (targetScale - this.scaleFactor) * 0.05;
 
@@ -479,7 +474,7 @@
     draw(ctx) {
       ctx.save();
 
-      // Skin filters
+      
       if (currentSkin === "cyber") {
         ctx.filter = "hue-rotate(120deg) saturate(220%) brightness(120%)";
       } else if (currentSkin === "ghost") {
@@ -558,7 +553,7 @@
           this.animFrameIndex + this.animTick, this.eyeX, this.eyeY, this.isBlinking, typingHeat);
       }
 
-      // Blush cheeks
+      
       const isPandaBlushing = pettingMeter > 4 || this.state === "sleep";
       if (isPandaBlushing) {
         ctx.save();
@@ -571,7 +566,7 @@
         ctx.restore();
       }
 
-      // Sweat drop when typing hot
+      
       if (typingHeat > 120) {
         ctx.save();
         if (this.facing === "left") { ctx.translate(this.width, 0); ctx.scale(-1, 1); }
@@ -588,7 +583,7 @@
         ctx.restore();
       }
 
-      // Bamboo stick when eating
+      
       if (this.state === "eat") {
         ctx.save();
         if (this.facing === "left") { ctx.translate(this.width, 0); ctx.scale(-1, 1); }
@@ -621,7 +616,7 @@
         ctx.restore();
       }
 
-      // Keyboard when typing
+      
       const isTypingActive = Date.now() - lastKeystrokeTime < 500;
       if (this.state === "knead" && isTypingActive) {
         const bY = 0;
@@ -642,7 +637,7 @@
         ctx.stroke();
         ctx.restore();
 
-        // Left keycap
+        
         const key1Down = leftDown ? 1.5 * s : 0;
         ctx.save();
         ctx.shadowBlur = leftDown ? 6 * s : 0;
@@ -656,7 +651,7 @@
         ctx.fill(); ctx.stroke();
         ctx.restore();
 
-        // Right keycap
+        
         const key2Down = rightDown ? 1.5 * s : 0;
         ctx.save();
         ctx.shadowBlur = rightDown ? 6 * s : 0;
@@ -671,7 +666,7 @@
         ctx.restore();
       }
 
-      // Alarm rings
+      
       if (this.state === "alarm") {
         ctx.strokeStyle = "#eab308";
         ctx.lineWidth = 2 * s;
@@ -695,9 +690,9 @@
     }
   }
 
-  // ==========================================
-  // SPRITESHEET EYES OVERLAY
-  // ==========================================
+  
+  
+  
   function drawSpritesheetEyes(ctx, pet, s) {
     if (pet.state === "sleep" || pet.state === "alarm") return;
 
@@ -748,9 +743,9 @@
     ctx.restore();
   }
 
-  // ==========================================
-  // FALLBACK VECTOR RENDERER
-  // ==========================================
+  
+  
+  
   function drawFallbackPanda(ctx, x, y, width, height, state, facing, frame, eyeX, eyeY, isBlinking, heat) {
     ctx.save();
     if (facing === "left") { ctx.translate(x + width, y); ctx.scale(-1, 1); }
@@ -782,7 +777,7 @@
     let breathY = state === "idle" ? Math.sin(frame * 0.15) * 1 * s : 0;
     const bY = breathY + bodyBounce;
 
-    // Feet
+    
     ctx.fillStyle = "#1e293b";
     if (state === "sleep") {
       ctx.fillRect(16 * s, 44 * s, 10 * s, 10 * s);
@@ -792,7 +787,7 @@
       ctx.fillRect(40 * s, 46 * s, 12 * s, 10 * s);
     }
 
-    // Arms
+    
     ctx.fillStyle = "#0f172a";
     if (state === "knead") {
       ctx.fillRect(4 * s, 26 * s + leftPawY, 14 * s, 12 * s);
@@ -802,25 +797,25 @@
       ctx.fillRect(46 * s, 28 * s + bY, 12 * s, 16 * s);
     }
 
-    // Body
+    
     ctx.fillStyle = "#f8fafc";
     ctx.fillRect(14 * s, 26 * s + bY, 36 * s, 22 * s - bY);
 
-    // Ears
+    
     ctx.fillStyle = "#1e293b";
     ctx.fillRect(10 * s, 4 * s + bY * 0.5, 12 * s, 12 * s);
     ctx.fillRect(42 * s, 4 * s + bY * 0.5, 12 * s, 12 * s);
 
-    // Head
+    
     ctx.fillStyle = "#f8fafc";
     ctx.fillRect(14 * s, 10 * s + bY * 0.5, 36 * s, 22 * s);
 
-    // Eye patches
+    
     ctx.fillStyle = "#1e293b";
     ctx.fillRect(18 * s, 18 * s + bY * 0.5, 8 * s, 8 * s);
     ctx.fillRect(38 * s, 18 * s + bY * 0.5, 8 * s, 8 * s);
 
-    // Eyes
+    
     if (state === "float") {
       ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -846,11 +841,11 @@
       }
     }
 
-    // Nose
+    
     ctx.fillStyle = "#0f172a";
     ctx.fillRect(29 * s, 23 * s + breathY * 0.5, 6 * s, 4 * s);
 
-    // Zzz for sleep
+    
     if (state === "sleep") {
       ctx.fillStyle = "#38bdf8";
       ctx.font = `bold ${12 * s}px sans-serif`;
@@ -860,9 +855,9 @@
     ctx.restore();
   }
 
-  // ==========================================
-  // BUBBLE RENDERERS
-  // ==========================================
+  
+  
+  
   function drawThoughtBubble(ctx, pet) {
     if (pet.state !== "think") return;
     ctx.save();
@@ -953,7 +948,7 @@
     else ctx.fillRect(bx, by, bubbleWidth, bubbleHeight);
     ctx.fill(); ctx.stroke();
 
-    // Pointer triangle
+    
     ctx.fillStyle = "#ffffff";
     ctx.beginPath();
     ctx.moveTo(pet.x + pet.width / 2 - 6, by + bubbleHeight);
@@ -975,14 +970,14 @@
     ctx.restore();
   }
 
-  // ==========================================
-  // PET INSTANCE
-  // ==========================================
+  
+  
+  
   pet = new DesktopPet();
 
-  // ==========================================
-  // MOUSE & INTERACTION HANDLERS
-  // ==========================================
+  
+  
+  
   let currentMouseX = 0, currentMouseY = 0;
   let lastWiggleDirection = 0;
   let prevMouseXGlobal = 0, prevMouseYGlobal = 0;
@@ -1001,7 +996,7 @@
     currentMouseY = e.clientY;
     mouseIdleTicks = 0;
 
-    // Petting detection
+    
     const isOverPetHead = pet.containsPoint(currentMouseX, currentMouseY) &&
       currentMouseY < pet.y + pet.height * 0.6;
     if (isOverPetHead && !pet.isDragging) {
@@ -1041,7 +1036,7 @@
       pet.anchorXRatio = pet.x / screenWidth;
       pet.anchorYRatio = pet.y / screenHeight;
 
-      // Save position to chrome.storage.local settings
+      
       chrome.storage.local.get(["settings"], (data) => {
         const settings = data.settings || {};
         settings.petPosition = {
@@ -1061,9 +1056,9 @@
     }
   });
 
-  // Keyboard handler — captures typing in the AI chat
+  
   document.addEventListener("keydown", (e) => {
-    // Only react to actual typing keys, not modifiers
+    
     if (e.key.length > 1 && !["Enter", "Backspace", "Delete", "Tab"].includes(e.key)) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
 
@@ -1085,9 +1080,9 @@
     );
   });
 
-  // ==========================================
-  // USAGE HUD — DOM CREATION
-  // ==========================================
+  
+  
+  
   function createHUD() {
     const info = PLATFORM_DISPLAY[PLATFORM];
     const hud = document.createElement("div");
@@ -1132,17 +1127,17 @@
     `;
     document.body.appendChild(hud);
 
-    // Collapse toggle
+    
     document.getElementById("paendeo-hud-collapse").addEventListener("click", () => {
       hud.classList.toggle("collapsed");
     });
 
-    // Close/hide
+    
     document.getElementById("paendeo-hud-close").addEventListener("click", () => {
       hud.classList.add("hidden");
     });
 
-    // Draggable HUD header
+    
     let hudDragging = false, hudStartX = 0, hudStartY = 0, hudLeft = 0, hudTop = 0;
     const header = document.getElementById("paendeo-hud-header");
     header.addEventListener("mousedown", (e) => {
@@ -1194,7 +1189,7 @@
     const worstPct = Math.max(convPct, dailyPct);
     const status = getStatusForPercent(worstPct);
 
-    // Update conversation bar
+    
     const convEl = document.getElementById("paendeo-conv-tokens");
     const convBar = document.getElementById("paendeo-conv-bar");
     if (convEl) convEl.textContent = `${formatTokens(conversationTokens)} / ${formatTokens(platformLimits.contextWindow)}`;
@@ -1203,7 +1198,7 @@
       convBar.className = "paendeo-token-bar-fill " + getStatusForPercent(convPct).cls;
     }
 
-    // Update daily bar
+    
     const dailyEl = document.getElementById("paendeo-daily-tokens");
     const dailyBar = document.getElementById("paendeo-daily-bar");
     if (dailyEl) dailyEl.textContent = `${dailyUsage.messagesCount} / ${platformLimits.dailyMessages} msgs`;
@@ -1212,21 +1207,21 @@
       dailyBar.className = "paendeo-token-bar-fill " + getStatusForPercent(dailyPct).cls;
     }
 
-    // Update status line
+    
     const statusLine = document.getElementById("paendeo-status");
     const statusText = document.getElementById("paendeo-status-text");
     if (statusLine) statusLine.className = "paendeo-status-line " + status.cls;
     if (statusText) statusText.textContent = status.text;
 
-    // Update pill (collapsed view)
+    
     const pill = document.getElementById("paendeo-hud-pill");
     if (pill) pill.textContent = `${status.icon} ${Math.round(worstPct)}%`;
 
-    // Update model name
+    
     const modelEl = document.getElementById("paendeo-model-name");
     if (modelEl && detectedModel) modelEl.textContent = `· ${detectedModel}`;
 
-    // Trigger panda reactions based on usage
+    
     triggerTokenReactions(worstPct);
   }
 
@@ -1260,9 +1255,9 @@
     }
   }
 
-  // ==========================================
-  // MESSAGE DETECTION — MUTATION OBSERVER
-  // ==========================================
+  
+  
+  
   const MESSAGE_SELECTORS = {
     chatgpt: {
       container: 'main',
@@ -1297,7 +1292,7 @@
     let totalTokens = 0;
     let messageCount = 0;
 
-    // Scan user messages
+    
     const userMsgs = document.querySelectorAll(selectors.userMsg);
     userMsgs.forEach(el => {
       const text = el.innerText || el.textContent || "";
@@ -1305,7 +1300,7 @@
       messageCount++;
     });
 
-    // Scan AI messages
+    
     const aiMsgs = document.querySelectorAll(selectors.aiMsg);
     aiMsgs.forEach(el => {
       const text = el.innerText || el.textContent || "";
@@ -1315,17 +1310,17 @@
     conversationTokens = totalTokens;
     conversationMessageCount = messageCount;
 
-    // Detect new messages vs. last scan
+    
     if (messageCount > lastMessageCount && lastMessageCount > 0) {
       const newMessages = messageCount - lastMessageCount;
-      // Count tokens from the newest user messages
+      
       const latestUserMsgs = Array.from(userMsgs).slice(-newMessages);
       let newTokensSent = 0;
       latestUserMsgs.forEach(el => {
         newTokensSent += estimateTokens(el.innerText || el.textContent || "");
       });
 
-      // Report to background
+      
       chrome.runtime.sendMessage({
         type: "INCREMENT_TOKENS",
         payload: {
@@ -1338,13 +1333,13 @@
 
     lastMessageCount = messageCount;
 
-    // Update conversation in background
+    
     chrome.runtime.sendMessage({
       type: "UPDATE_CONVERSATION",
       payload: { platform: PLATFORM, totalTokens, messageCount }
     }).catch(() => {});
 
-    // Detect model
+    
     try {
       const modelEl = document.querySelector(selectors.modelDetect);
       if (modelEl) {
@@ -1354,7 +1349,7 @@
     } catch (e) {}
   }
 
-  // Set up MutationObserver to watch for new messages
+  
   let observer = null;
   let observerDebounce = null;
 
@@ -1374,7 +1369,7 @@
         }
       }
       if (hasRelevant) {
-        // Debounce scans
+        
         clearTimeout(observerDebounce);
         observerDebounce = setTimeout(() => {
           scanConversation();
@@ -1390,14 +1385,14 @@
     });
   }
 
-  // Retry setup for SPAs that load content dynamically
+  
   let setupAttempts = 0;
   let isSuccessfullySetup = false;
 
   function trySetup() {
     scanConversation();
 
-    // Find the container to observe
+    
     const selectors = MESSAGE_SELECTORS[PLATFORM];
     if (selectors) {
       let container = null;
@@ -1411,7 +1406,7 @@
         setupObserver(container);
         isSuccessfullySetup = true;
       } else {
-        // Fallback to body for now
+        
         setupObserver(document.body);
       }
     }
@@ -1422,9 +1417,9 @@
     }
   }
 
-  // ==========================================
-  // LOAD SETTINGS FROM STORAGE
-  // ==========================================
+  
+  
+  
   let loadSettingsAttempts = 0;
   async function loadSettings() {
     try {
@@ -1440,11 +1435,11 @@
         currentSkin = data.settings.skin || "normal";
         showHUD = data.settings.showHUD !== false;
 
-        // Apply scale
+        
         pet.width = SPRITE_CONFIG.renderWidth * petScale;
         pet.height = SPRITE_CONFIG.renderHeight * petScale;
 
-        // Apply position
+        
         if (data.settings.petPosition) {
           pet.anchorXRatio = data.settings.petPosition.xRatio;
           pet.anchorYRatio = data.settings.petPosition.yRatio;
@@ -1455,7 +1450,7 @@
           pet.anchorY = pet.y;
         }
 
-        // Show/hide elements
+        
         canvas.style.display = petEnabled ? "" : "none";
         hitArea.style.display = petEnabled ? "" : "none";
         const hud = document.getElementById("paendeo-hud");
@@ -1474,7 +1469,7 @@
     }
   }
 
-  // Listen for storage changes (from popup)
+  
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if (changes.settings) {
@@ -1489,7 +1484,7 @@
         pet.width = SPRITE_CONFIG.renderWidth * petScale;
         pet.height = SPRITE_CONFIG.renderHeight * petScale;
 
-        // Apply position
+        
         if (s.petPosition) {
           pet.anchorXRatio = s.petPosition.xRatio;
           pet.anchorYRatio = s.petPosition.yRatio;
@@ -1519,9 +1514,9 @@
     }
   });
 
-  // ==========================================
-  // GAME LOOP (30 FPS)
-  // ==========================================
+  
+  
+  
   let lastFrameTime = 0;
   const fps = 30;
   const frameDelay = 1000 / fps;
@@ -1542,23 +1537,23 @@
 
     ctx.clearRect(0, 0, screenWidth, screenHeight);
 
-    // Tick counters
+    
     mouseIdleTicks++;
     if (pettingMeter > 0) { pettingMeter -= 0.08; if (pettingMeter < 0) pettingMeter = 0; }
     if (typingHeat > 0) { typingHeat -= 1.2; if (typingHeat < 0) typingHeat = 0; }
 
-    // Greeting timer
+    
     if (greetingTimer > 0) {
       greetingTimer--;
       if (greetingTimer === 0) greetingText = "";
     }
 
-    // Steam particles when overheating
+    
     if (typingHeat > 150 && Math.random() < 0.15) {
       spawnParticle(pet.x + pet.width / 2 + (Math.random() - 0.5) * 20, pet.y, "steam");
     }
 
-    // Leaf particles when eating
+    
     if (pet.state === "eat") {
       const s = pet.width / 64;
       const timeInCycle = Date.now() % 3000;
@@ -1570,13 +1565,13 @@
       }
     }
 
-    // Update pet
+    
     pet.update(currentMouseX, currentMouseY);
 
-    // Draw pet
+    
     pet.draw(ctx);
 
-    // Overheat tint
+    
     if (typingHeat > 130) {
       ctx.save();
       ctx.globalCompositeOperation = "source-atop";
@@ -1585,11 +1580,11 @@
       ctx.restore();
     }
 
-    // Petting text override
+    
     let displayedText = "";
     if (pettingMeter > 8) displayedText = "Purr... ❤️";
 
-    // Bubble rendering priority: speech > thought > snooze
+    
     if (greetingText) {
       drawSpeechBubble(ctx, pet, greetingText);
     } else if (displayedText) {
@@ -1600,33 +1595,33 @@
       drawSnoozeBubble(ctx, pet);
     }
 
-    // Update & draw particles
+    
     for (let i = particles.length - 1; i >= 0; i--) {
       particles[i].update();
       particles[i].draw(ctx);
       if (particles[i].life <= 0) particles.splice(i, 1);
     }
 
-    // Update hit area position
+    
     updateHitArea();
 
     requestAnimationFrame(gameLoop);
   }
 
-  // ==========================================
-  // INITIALIZATION
-  // ==========================================
+  
+  
+  
   loadSettings();
-  setTimeout(trySetup, 1500); // Delay to let SPA content load
+  setTimeout(trySetup, 1500); 
   gameLoop();
 
-  // Periodic rescan every 10 seconds for streaming responses
+  
   setInterval(() => {
     scanConversation();
     updateHUD();
   }, 10000);
 
-  // Periodic daily usage sync every 30 seconds
+  
   setInterval(async () => {
     try {
       const data = await chrome.runtime.sendMessage({ type: "GET_USAGE", payload: {} });

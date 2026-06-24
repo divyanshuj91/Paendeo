@@ -1,8 +1,3 @@
-// ==========================================
-// PAENDEO EXTENSION — BACKGROUND SERVICE WORKER
-// Storage management, daily resets, message routing
-// ==========================================
-
 const DEFAULT_STORAGE = {
   platforms: {
     chatgpt: {
@@ -38,9 +33,6 @@ const DEFAULT_STORAGE = {
   lastResetDate: null
 };
 
-// ==========================================
-// INITIALIZATION
-// ==========================================
 chrome.runtime.onInstalled.addListener(async () => {
   const data = await chrome.storage.local.get(null);
   if (!data.platforms) {
@@ -54,12 +46,9 @@ chrome.runtime.onStartup.addListener(() => {
   checkAndResetDaily();
 });
 
-// ==========================================
-// DAILY RESET ALARM
-// ==========================================
 function setupDailyReset() {
   chrome.alarms.create("dailyReset", {
-    periodInMinutes: 60 // Check every hour
+    periodInMinutes: 60
   });
 }
 
@@ -89,9 +78,6 @@ async function checkAndResetDaily() {
   await chrome.storage.local.set({ platforms, lastResetDate: today });
 }
 
-// ==========================================
-// TIER-BASED LIMITS
-// ==========================================
 const TIER_LIMITS = {
   chatgpt: {
     free:  { contextWindow: 128000, dailyMessages: 80 },
@@ -116,9 +102,6 @@ const TIER_LIMITS = {
   }
 };
 
-// ==========================================
-// MESSAGE HANDLERS
-// ==========================================
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   handleMessage(message, sender)
     .then((response) => {
@@ -128,7 +111,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.error("Error handling message:", error);
       sendResponse({ error: error.message || String(error) });
     });
-  return true; // Keep channel open for async response
+  return true;
 });
 
 async function handleMessage(message, sender) {
@@ -146,7 +129,6 @@ async function handleMessage(message, sender) {
       const platforms = JSON.parse(JSON.stringify(data.platforms || DEFAULT_STORAGE.platforms));
       const today = new Date().toISOString().split("T")[0];
 
-      // Auto-reset if date changed
       if (data.lastResetDate !== today) {
         await checkAndResetDaily();
         return { success: true };
@@ -237,4 +219,3 @@ async function handleMessage(message, sender) {
       return { error: "Unknown message type" };
   }
 }
-
