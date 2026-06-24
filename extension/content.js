@@ -11,6 +11,9 @@
   if (window.__paendeoInjected) return;
   window.__paendeoInjected = true;
 
+  let pet = null;
+
+
   // ==========================================
   // PLATFORM DETECTION
   // ==========================================
@@ -975,7 +978,7 @@
   // ==========================================
   // PET INSTANCE
   // ==========================================
-  const pet = new DesktopPet();
+  pet = new DesktopPet();
 
   // ==========================================
   // MOUSE & INTERACTION HANDLERS
