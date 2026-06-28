@@ -1,7 +1,12 @@
 from PIL import Image
 import collections
+import os
 
 def clean_spritesheet(input_path, output_path):
+    if not os.path.exists(input_path):
+        print(f"Error: {input_path} does not exist.")
+        return
+        
     img = Image.open(input_path).convert("RGBA")
     width, height = img.size
     pixels = img.load()
@@ -18,25 +23,24 @@ def clean_spritesheet(input_path, output_path):
             x_offset = col * cell_w
             y_offset = row * cell_h
             
-            # We will perform BFS starting from all border pixels of this cell
+            # BFS queue starting from border pixels of this 128x128 cell
             queue = collections.deque()
             visited = set()
             
-            # Add top and bottom borders
+            # Add top and bottom border coordinates of the cell
             for dx in range(cell_w):
                 queue.append((dx, 0))
                 queue.append((dx, cell_h - 1))
                 visited.add((dx, 0))
                 visited.add((dx, cell_h - 1))
                 
-            # Add left and right borders
+            # Add left and right border coordinates of the cell
             for dy in range(1, cell_h - 1):
                 queue.append((0, dy))
                 queue.append((cell_w - 1, dy))
                 visited.add((0, dy))
                 visited.add((cell_w - 1, dy))
                 
-            # BFS to find all background pixels
             background_pixels = set()
             
             while queue:
@@ -44,17 +48,19 @@ def clean_spritesheet(input_path, output_path):
                 gx = x_offset + cx
                 gy = y_offset + cy
                 
-                r, g, b, a = pixels[gx, gy]
+                r, g, b = pixels[gx, gy][:3]
                 
                 # Check if this pixel is background-like:
-                # 1. Magenta-like
-                is_magenta = (r > 120 and b > 120 and g < 110)
+                # 1. Magenta background (any shade of pink/magenta where green is low relative to R and B)
+                is_magenta = (r > 80 and b > 80 and g < 150 and g < r - 20 and g < b - 20)
                 
-                # 2. Grid-line-like: must be near grid coordinates and dark purple/black
-                is_near_grid_x = (cx % 16 <= 1 or cx % 16 >= 15)
-                is_near_grid_y = (cy % 16 <= 1 or cy % 16 >= 15)
-                is_dark = (r < 120 and g < 50 and b < 120)
-                is_grid_line = (is_near_grid_x or is_near_grid_y) and is_dark
+                # 2. Grid-line-like: close to the 128x128 cell boundaries and is dark purple or black/grey
+                is_near_border = (cx <= 4 or cx >= 123 or cy <= 4 or cy >= 123)
+                
+                is_dark = (r < 60 and g < 60 and b < 60)
+                is_purple_tint = (g < r - 4 and g < b - 4)
+                
+                is_grid_line = is_near_border and (is_dark or is_purple_tint)
                 
                 if is_magenta or is_grid_line:
                     background_pixels.add((cx, cy))
@@ -66,8 +72,8 @@ def clean_spritesheet(input_path, output_path):
                                 visited.add((nx, ny))
                                 queue.append((nx, ny))
                                 
-            # Copy pixels to output: if it's a background pixel, leave transparent.
-            # Otherwise copy from original image, keying out any leftover magenta.
+            # Copy pixels to output: if it's marked as background/grid, leave it transparent.
+            # Otherwise, copy the original pixel and force outer 1px buffer to be 100% transparent.
             for cx in range(cell_w):
                 for cy in range(cell_h):
                     gx = x_offset + cx
@@ -76,15 +82,20 @@ def clean_spritesheet(input_path, output_path):
                     if (cx, cy) in background_pixels:
                         out_pixels[gx, gy] = (0, 0, 0, 0)
                     else:
-                        r, g, b, a = pixels[gx, gy]
-                        # Final check for magenta
-                        if r > 120 and b > 120 and g < 110:
+                        r, g, b = pixels[gx, gy][:3]
+                        # Final safety check for leftover magenta pixels
+                        if r > 80 and b > 80 and g < r - 20 and g < b - 20:
                             out_pixels[gx, gy] = (0, 0, 0, 0)
                         else:
-                            out_pixels[gx, gy] = (r, g, b, a)
-                            
+                            # Force a 1px transparent gutter at the very edges of each cell 
+                            # to prevent texture filtering bleed/scaling artifacts
+                            if cx == 0 or cx == cell_w - 1 or cy == 0 or cy == cell_h - 1:
+                                out_pixels[gx, gy] = (0, 0, 0, 0)
+                            else:
+                                out_pixels[gx, gy] = (r, g, b, 255)
+                                
     out_img.save(output_path)
-    print(f"Cleaned sprite sheet saved to {output_path}")
+    print(f"Cleaned sprite sheet successfully saved to {output_path}")
 
 if __name__ == "__main__":
-    clean_spritesheet("panda_spritesheet.png", "panda_spritesheet_clean.png")
+    clean_spritesheet("panda_spritesheet.png", "src/assets/panda_spritesheet_clean.png")
