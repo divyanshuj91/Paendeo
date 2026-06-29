@@ -21,6 +21,7 @@
     petSpeed: 1.0,
     skin: "normal",
     showHUD: true,
+    optimizerEnabled: true,
   };
 
   function todayISO() {
@@ -147,6 +148,14 @@
     $("slider-speed").value  = settings.petSpeed;
     $("val-speed").textContent = Number(settings.petSpeed).toFixed(1);
     $("select-skin").value   = settings.skin;
+    $("toggle-optimizer").checked = settings.optimizerEnabled !== false;
+
+    storage.get(["apiKeys"]).then((data) => {
+      const keys = data.apiKeys || {};
+      $("input-key-openai").value = keys.openai || "";
+      $("input-key-anthropic").value = keys.anthropic || "";
+      $("input-key-gemini").value = keys.gemini || "";
+    });
   }
 
   
@@ -257,6 +266,28 @@
     
     $("toggle-hud")?.addEventListener("change", (e) => {
       saveSetting("showHUD", e.target.checked);
+    });
+
+    $("toggle-optimizer")?.addEventListener("change", (e) => {
+      saveSetting("optimizerEnabled", e.target.checked);
+    });
+
+    $("btn-save-keys")?.addEventListener("click", async () => {
+      const openai = $("input-key-openai").value.trim();
+      const anthropic = $("input-key-anthropic").value.trim();
+      const gemini = $("input-key-gemini").value.trim();
+
+      await storage.set({
+        apiKeys: { openai, anthropic, gemini }
+      });
+
+      const btn = $("btn-save-keys");
+      btn.textContent = "✓ Keys Saved";
+      btn.style.background = "var(--status-green)";
+      setTimeout(() => {
+        btn.textContent = "Save API Keys";
+        btn.style.background = "";
+      }, 1200);
     });
 
     

@@ -4,7 +4,7 @@
   "description": "Boilerplate for an Electron transparent overlay desktop pet.",
   "main": "src/main/main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "node scripts/inject-env.js && electron ."
   },
   "keywords": [],
   "author": "",

@@ -247,6 +247,32 @@
             </label>
           </div>
 
+          <div class="settings-divider">✨ Prompt Optimizer</div>
+
+          <div class="setting-row" id="setting-optimizer-enabled">
+            <span class="setting-label">Silent Intercept & Optimize</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggle-optimizer" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="api-keys-container">
+            <div class="api-key-row">
+              <label class="api-key-label" for="input-key-openai">OpenAI API Key</label>
+              <input type="password" id="input-key-openai" class="api-key-input" placeholder="sk-..." />
+            </div>
+            <div class="api-key-row">
+              <label class="api-key-label" for="input-key-anthropic">Anthropic API Key</label>
+              <input type="password" id="input-key-anthropic" class="api-key-input" placeholder="sk-ant-..." />
+            </div>
+            <div class="api-key-row">
+              <label class="api-key-label" for="input-key-gemini">Gemini API Key</label>
+              <input type="password" id="input-key-gemini" class="api-key-input" placeholder="AIzaSy..." />
+            </div>
+            <button class="api-keys-save-btn" id="btn-save-keys">Save API Keys</button>
+          </div>
+
         </div>
       </div>
     </section>

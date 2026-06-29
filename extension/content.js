@@ -117,6 +117,9 @@
   let petSpeedFactor = 1.0;
   let petEnabled = true;
   let showHUD = true;
+  let optimizerEnabled = true;
+  let isOptimizing = false;
+  let skipNextInterception = false;
 
   
   let greetingText = "";
@@ -1080,6 +1083,180 @@
     );
   });
 
+  function getActiveInputField() {
+    const selectors = [
+      'textarea#prompt-textarea',
+      '.ProseMirror[contenteditable="true"]',
+      'div[contenteditable="true"]',
+      'textarea'
+    ];
+    for (const s of selectors) {
+      const el = document.querySelector(s);
+      if (el && el.getBoundingClientRect().height > 0) {
+        return el;
+      }
+    }
+    return document.activeElement;
+  }
+
+  function getPromptText(inputEl) {
+    if (!inputEl) return "";
+    if (inputEl.tagName === "TEXTAREA" || inputEl.tagName === "INPUT") {
+      return inputEl.value;
+    }
+    return inputEl.innerText || inputEl.textContent || "";
+  }
+
+  function replaceInputText(inputEl, newText) {
+    if (!inputEl) return;
+    inputEl.focus();
+    if (inputEl.tagName === "TEXTAREA" || inputEl.tagName === "INPUT") {
+      inputEl.select();
+      document.execCommand("selectAll", false, null);
+      document.execCommand("insertText", false, newText);
+    } else {
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(inputEl);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.execCommand("selectAll", false, null);
+      document.execCommand("insertText", false, newText);
+    }
+    inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+    inputEl.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function findSendButton() {
+    const selectors = [
+      'button[data-testid="send-button"]',
+      'button[aria-label="Send Message"]',
+      'button[aria-label="Send message"]',
+      'button.send-button',
+      'button[class*="send"]',
+      'button[aria-label*="send"]',
+      'button[aria-label*="Send"]',
+      '[class*="SendButton"] button'
+    ];
+    for (const s of selectors) {
+      const btn = document.querySelector(s);
+      if (btn && btn.getBoundingClientRect().height > 0 && !btn.disabled) {
+        return btn;
+      }
+    }
+    return null;
+  }
+
+  function submitPrompt(inputEl) {
+    const sendBtn = findSendButton();
+    if (sendBtn) {
+      sendBtn.click();
+    } else {
+      const enterEvent = new KeyboardEvent("keydown", {
+        key: "Enter",
+        code: "Enter",
+        keyCode: 13,
+        which: 13,
+        bubbles: true,
+        cancelable: true
+      });
+      inputEl.dispatchEvent(enterEvent);
+    }
+  }
+
+  async function handleIntercept(e, inputEl, triggerSubmitFn) {
+    if (skipNextInterception) {
+      skipNextInterception = false;
+      return;
+    }
+
+    if (isOptimizing) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    const rawPrompt = getPromptText(inputEl);
+    if (!optimizerEnabled || !rawPrompt || rawPrompt.trim().length < 10) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    isOptimizing = true;
+    showGreetingBubble("Optimizing prompt... 🪄", 10000);
+
+    if (pet) {
+      pet.state = "knead";
+      pet.vx = 0;
+      pet.vy = 0;
+      for (let i = 0; i < 8; i++) {
+        spawnParticle(
+          pet.x + pet.width / 2 + (Math.random() - 0.5) * 40,
+          pet.y + 10,
+          "water"
+        );
+      }
+    }
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: "ENHANCE_PROMPT",
+        payload: { prompt: rawPrompt }
+      });
+
+      if (response && response.success && response.optimizedPrompt) {
+        replaceInputText(inputEl, response.optimizedPrompt);
+        showGreetingBubble("Prompt optimized! 🎋", 2000);
+        if (pet) {
+          pet.state = "eat";
+          pet.tokenReactionTimer = 60;
+        }
+        skipNextInterception = true;
+        setTimeout(() => {
+          triggerSubmitFn();
+        }, 150);
+      } else {
+        console.warn("Prompt optimization failed:", response?.error || "Unknown error");
+        showGreetingBubble("Optimization failed. Sending raw prompt...", 2000);
+        skipNextInterception = true;
+        triggerSubmitFn();
+      }
+    } catch (err) {
+      console.error("Error in optimization pipeline:", err);
+      showGreetingBubble("Optimization failed. Sending raw prompt...", 2000);
+      skipNextInterception = true;
+      triggerSubmitFn();
+    } finally {
+      isOptimizing = false;
+    }
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const activeEl = getActiveInputField();
+      if (activeEl && (activeEl.tagName === "TEXTAREA" || activeEl.tagName === "INPUT" || activeEl.isContentEditable)) {
+        handleIntercept(e, activeEl, () => {
+          submitPrompt(activeEl);
+        });
+      }
+    }
+  }, true);
+
+  document.addEventListener("click", (e) => {
+    const sendBtn = e.target.closest('button[data-testid*="send"], button[aria-label*="send"], button[aria-label*="Send"], button[class*="send"], button.send-button');
+    if (sendBtn) {
+      const activeEl = getActiveInputField();
+      if (activeEl) {
+        handleIntercept(e, activeEl, () => {
+          sendBtn.click();
+        });
+      }
+    }
+  }, true);
+
+
   
   
   
@@ -1434,6 +1611,7 @@
         petSpeedFactor = data.settings.petSpeed || 1.0;
         currentSkin = data.settings.skin || "normal";
         showHUD = data.settings.showHUD !== false;
+        optimizerEnabled = data.settings.optimizerEnabled !== false;
 
         
         pet.width = SPRITE_CONFIG.renderWidth * petScale;
@@ -1480,6 +1658,7 @@
         petSpeedFactor = s.petSpeed || 1.0;
         currentSkin = s.skin || "normal";
         showHUD = s.showHUD !== false;
+        optimizerEnabled = s.optimizerEnabled !== false;
 
         pet.width = SPRITE_CONFIG.renderWidth * petScale;
         pet.height = SPRITE_CONFIG.renderHeight * petScale;

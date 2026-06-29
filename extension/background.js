@@ -1,3 +1,10 @@
+try {
+  importScripts("env.js");
+} catch (e) {
+  console.warn("Paendeo: env.js not found, running without environment keys.");
+  self.ENV_KEYS = { openai: "", anthropic: "", gemini: "" };
+}
+
 const DEFAULT_STORAGE = {
   platforms: {
     chatgpt: {
@@ -38,12 +45,34 @@ chrome.runtime.onInstalled.addListener(async () => {
   if (!data.platforms) {
     await chrome.storage.local.set(DEFAULT_STORAGE);
   }
+  
+  const existingKeys = data.apiKeys || {};
+  const env = self.ENV_KEYS || {};
+  await chrome.storage.local.set({
+    apiKeys: {
+      openai: existingKeys.openai || env.openai || "",
+      anthropic: existingKeys.anthropic || env.anthropic || "",
+      gemini: existingKeys.gemini || env.gemini || ""
+    }
+  });
+  
   setupDailyReset();
 });
 
-chrome.runtime.onStartup.addListener(() => {
+chrome.runtime.onStartup.addListener(async () => {
   setupDailyReset();
   checkAndResetDaily();
+  
+  const data = await chrome.storage.local.get("apiKeys");
+  const keys = data.apiKeys || {};
+  const env = self.ENV_KEYS || {};
+  await chrome.storage.local.set({
+    apiKeys: {
+      openai: keys.openai || env.openai || "",
+      anthropic: keys.anthropic || env.anthropic || "",
+      gemini: keys.gemini || env.gemini || ""
+    }
+  });
 });
 
 function setupDailyReset() {
@@ -215,7 +244,149 @@ async function handleMessage(message, sender) {
       return { success: true };
     }
 
+    case "ENHANCE_PROMPT": {
+      const { prompt } = safePayload;
+      if (!prompt || prompt.trim().length === 0) {
+        return { error: "Empty prompt" };
+      }
+      return await optimizePromptPipeline(prompt);
+    }
+
     default:
       return { error: "Unknown message type" };
   }
+}
+
+async function fetchWithTimeout(url, options, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+}
+
+async function optimizePromptPipeline(rawPrompt) {
+  const SYSTEM_META = 
+    "You are an expert prompt engineer. Take the user's raw input and rewrite it into a world-class, high-performance structured prompt.\n" +
+    "Dynamically embed:\n" +
+    "- ROLE: A highly specific expert persona.\n" +
+    "- CONTEXT: The implicit background reasoning.\n" +
+    "- CONSTRAINTS: Formatting boundaries, strict rules, and stylistic tone.\n" +
+    "- OUTPUT SCHEMA: Clear layout instructions (e.g., Markdown, tables, bullets).\n\n" +
+    "CRITICAL RULE: Do not answer or fulfill the user's request. Output ONLY the raw text of the newly optimized prompt so it can be fed directly to another AI.";
+
+  const storageData = await chrome.storage.local.get(["apiKeys"]);
+  const keys = storageData.apiKeys || {};
+  const env = self.ENV_KEYS || {};
+
+  const pipeline = [
+    { provider: "openai", model: "gpt-4o", apiKey: keys.openai || env.openai || "" },
+    { provider: "anthropic", model: "claude-3-5-sonnet-20241022", apiKey: keys.anthropic || env.anthropic || "" },
+    { provider: "gemini", model: "gemini-2.5-flash", apiKey: keys.gemini || env.gemini || "" },
+    { provider: "openai", model: "gpt-4o-mini", apiKey: keys.openai || env.openai || "" }
+  ];
+
+  for (const node of pipeline) {
+    if (!node.apiKey) {
+      console.log(`[Pipeline Log]: Skipping ${node.model} because its API key is not configured.`);
+      continue;
+    }
+
+    try {
+      let url = "";
+      let options = {
+        method: "POST",
+        headers: {}
+      };
+
+      if (node.provider === "openai") {
+        url = "https://api.openai.com/v1/chat/completions";
+        options.headers = {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${node.apiKey}`
+        };
+        options.body = JSON.stringify({
+          model: node.model,
+          messages: [
+            { role: "system", content: SYSTEM_META },
+            { role: "user", content: `Optimize: ${rawPrompt}` }
+          ],
+          temperature: 0.4
+        });
+      } else if (node.provider === "anthropic") {
+        url = "https://api.anthropic.com/v1/messages";
+        options.headers = {
+          "content-type": "application/json",
+          "x-api-key": node.apiKey,
+          "anthropic-version": "2023-06-01"
+        };
+        options.body = JSON.stringify({
+          model: node.model,
+          max_tokens: 4096,
+          system: SYSTEM_META,
+          messages: [
+            { role: "user", content: `Optimize: ${rawPrompt}` }
+          ],
+          temperature: 0.4
+        });
+      } else if (node.provider === "gemini") {
+        url = `https://generativelanguage.googleapis.com/v1beta/models/${node.model}:generateContent?key=${node.apiKey}`;
+        options.headers = {
+          "Content-Type": "application/json"
+        };
+        options.body = JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: `Optimize: ${rawPrompt}` }]
+            }
+          ],
+          systemInstruction: {
+            parts: [{ text: SYSTEM_META }]
+          },
+          generationConfig: {
+            temperature: 0.4
+          }
+        });
+      }
+
+      console.log(`[Pipeline Log]: Trying ${node.model} via ${node.provider}...`);
+      const response = await fetchWithTimeout(url, options, 10000);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const resJson = await response.json();
+      let optimizedText = "";
+
+      if (node.provider === "openai") {
+        optimizedText = resJson.choices[0].message.content;
+      } else if (node.provider === "anthropic") {
+        optimizedText = resJson.content[0].text;
+      } else if (node.provider === "gemini") {
+        optimizedText = resJson.candidates[0].content.parts[0].text;
+      }
+
+      if (optimizedText) {
+        console.log(`[Pipeline Success]: Successfully optimized prompt using ${node.model}`);
+        return { success: true, optimizedPrompt: optimizedText.trim() };
+      }
+      throw new Error("Empty response received from LLM model");
+    } catch (e) {
+      console.warn(`[Fallback Log]: ${node.model} failed. Error: ${e.message || e}. Trying next tier...`);
+      continue;
+    }
+  }
+
+  throw new Error("All LLM fallback paths completely exhausted.");
 }
