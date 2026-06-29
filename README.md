@@ -8,18 +8,76 @@ Paendeo is a desktop companion and browser utility designed to monitor and manag
 
 ## System Architecture
 
+### Component Architecture
+
+The module relationship between the browser extension and the transparent desktop overlay application:
+
 ```mermaid
 graph TD
-    subgraph Browser (Chrome Extension)
-        A[Content Script: content.js] -->|Intercepts Submit| B[Background SW: background.js]
-        B -->|LLM API Request| C[OpenAI / Anthropic / Gemini]
-        B -->|Returns Upgraded Prompt| A
-        A -->|Injects DOM / Tracks Tokens| D[Live HUD UI]
+    subgraph Browser Extension (Paendeo Companion)
+        CS[content.js <br/> Content Script] -->|Intercepts submit event| BG[background.js <br/> Service Worker]
+        BG -->|Asynchronous API calls| LLM{LLM API Providers}
+        LLM -->|1. OpenAI gpt-4o| OA1[api.openai.com]
+        LLM -->|2. Anthropic Claude| AN[api.anthropic.com]
+        LLM -->|3. Google Gemini| GE[generativelanguage.googleapis.com]
+        LLM -->|4. OpenAI gpt-4o-mini| OA2[api.openai.com]
+        
+        OA1 -->|Fail / Timeout| AN
+        AN -->|Fail / Timeout| GE
+        GE -->|Fail / Timeout| OA2
+        
+        LLM -.->|Returns enhanced prompt| BG
+        BG -.->|Injects prompt| CS
+        CS -->|Updates DOM| Textarea[Chat Input Field]
+        CS -->|Renders overlay| ExtPet[In-Tab Canvas Pet]
+        CS -->|Displays metrics| HUD[Floating Token Tracker HUD]
     end
-    subgraph Desktop (Electron App)
-        E[Main Process: main.js] -->|Global Keystrokes| F[Renderer Process: renderer.js]
-        F -->|Triggers Animations| G[Transparent Desktop Pet]
+
+    subgraph Desktop Application (Transparent Overlay)
+        Main[main.js <br/> Electron Main] -->|IPC: global-keydown| Renderer[renderer.js <br/> Electron Renderer]
+        Renderer -->|Draws animations| Canvas[Transparent Desktop Canvas]
     end
+```
+
+---
+
+### Prompt Optimization Execution Flow
+
+The step-by-step lifecycle of prompt interception, fallback routing, and DOM synchronization:
+
+```mermaid
+flowchart TD
+    Start([User submits raw prompt]) --> CheckOptimizer{Optimizer Enabled?}
+    
+    CheckOptimizer -->|No| SubmitRaw([Submit original prompt])
+    CheckOptimizer -->|Yes| CheckLength{Prompt length >= 10 chars?}
+    
+    CheckLength -->|No| SubmitRaw
+    CheckLength -->|Yes| Intercept[Intercept event & prevent default submit]
+    
+    Intercept --> LoadingState[Panda plays magic-casting animation & displays loading bubble]
+    LoadingState --> CallPipeline[background.js: Run Sequential Fallback Pipeline]
+    
+    CallPipeline --> TryGPT4o[1. Try GPT-4o]
+    TryGPT4o -->|Success| ReturnPrompt[Return optimized prompt]
+    TryGPT4o -->|Fail or 10s Timeout| TryClaude[2. Try Claude 3.5 Sonnet]
+    
+    TryClaude -->|Success| ReturnPrompt
+    TryClaude -->|Fail or 10s Timeout| TryGemini[3. Try Gemini 2.5 Flash]
+    
+    TryGemini -->|Success| ReturnPrompt
+    TryGemini -->|Fail or 10s Timeout| TryGPT4oMini[4. Try GPT-4o-mini]
+    
+    TryGPT4oMini -->|Success| ReturnPrompt
+    TryGPT4oMini -->|Fail or 10s Timeout| PipelineFailed([All nodes failed])
+    
+    ReturnPrompt --> ReplaceDOM[content.js: Replace text via document.execCommand]
+    ReplaceDOM --> DispatchEvents[Dispatch input & change events]
+    DispatchEvents --> WaitSync[Wait 150ms for React/Angular VDOM state synchronization]
+    WaitSync --> SubmitOptimized([Submit optimized prompt])
+    
+    PipelineFailed --> SubmitOriginalOnError[Panda shows error bubble]
+    SubmitOriginalOnError --> SubmitRaw
 ```
 
 ---
