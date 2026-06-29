@@ -25,9 +25,29 @@ Start the application by running:
    npm start
    ```
 
+
 ---
 
-## 🤝 How to Contribute
+## Features
+
+### Resilient Prompt-Optimization Middleware
+The Chrome extension includes an automatic prompt-enhancement feature that silently intercepts raw inputs on ChatGPT, Claude, Gemini, and Grok. When a user submits a prompt, the extension:
+1. Intercepts the submit action and triggers a visual kneading animation on the pet.
+2. Sends the prompt through a sequential, resilient API fallback pipeline (`gpt-4o` ➔ `claude-3-5-sonnet` ➔ `gemini-2.5-flash` ➔ `gpt-4o-mini`).
+3. Enforces a 10-second timeout per API call. If a model fails, hits a rate limit, or lacks a configured key, the script instantly falls back to the next tier in the pipeline.
+4. Uses a 150ms state synchronization delay to ensure React/Angular components update their internal states before submitting the final optimized prompt.
+5. Falls back to sending the original user input if all nodes in the pipeline fail, ensuring user workflow is never blocked.
+
+### Secure Environment Variables
+API keys are handled securely to prevent exposure in public version control:
+- Create a `.env` file in the root directory specifying your keys (e.g. `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`).
+- Run `npm start` to trigger the build script (`scripts/inject-env.js`) which generates `extension/env.js` containing these keys.
+- Both `.env` and `extension/env.js` are ignored by Git.
+- Keys can also be entered or overridden directly in the extension settings popup.
+
+---
+
+## How to Contribute
 
 We welcome contributions! To maintain security and repository integrity, please adhere strictly to the following contribution workflow.
 

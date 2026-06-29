@@ -421,7 +421,7 @@ body::-webkit-scrollbar-thumb {
 }
 
 #settings-section.open .settings-drawer {
-  max-height: 320px;
+  max-height: 800px;
 }
 
 .settings-inner {
@@ -657,3 +657,79 @@ body::-webkit-scrollbar-thumb {
 .status-yellow { color: var(--status-yellow); background: rgba(234, 179, 8, 0.12); }
 .status-orange { color: var(--status-orange); background: rgba(249, 115, 22, 0.12); }
 .status-red    { color: var(--status-red);    background: rgba(239, 68, 68, 0.12); }
+
+.settings-divider {
+  margin: 14px 14px 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-indigo);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 4px;
+}
+
+.api-keys-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  margin: 6px 14px;
+}
+
+.api-key-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.api-key-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.api-key-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  padding: 6px 10px;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.api-key-input:focus {
+  border-color: var(--accent-indigo);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+.api-keys-save-btn {
+  margin-top: 6px;
+  padding: 8px 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent-gradient);
+  color: #fff;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.2);
+}
+
+.api-keys-save-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.api-keys-save-btn:active {
+  transform: translateY(0);
+}
+

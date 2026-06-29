@@ -12,3 +12,7 @@ pnpm-debug.log*
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Environment Keys
+.env
+extension/env.js
