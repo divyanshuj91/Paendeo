@@ -1296,6 +1296,20 @@
             <div class="paendeo-token-bar-fill status-green" id="paendeo-daily-bar" style="width:0%"></div>
           </div>
         </div>
+        <div class="paendeo-hud-divider"></div>
+        <div class="paendeo-optimizer-row">
+          <div class="paendeo-optimizer-info">
+            <span class="paendeo-optimizer-title">✨ Prompt Optimizer</span>
+            <span class="paendeo-optimizer-status status-on" id="paendeo-optimizer-status-label">ON</span>
+          </div>
+          <div class="paendeo-optimizer-controls">
+            <label class="paendeo-switch">
+              <input type="checkbox" id="paendeo-hud-toggle-optimizer" checked />
+              <span class="paendeo-slider"></span>
+            </label>
+            <button class="paendeo-off-btn" id="paendeo-hud-btn-off" title="Turn Off">Off</button>
+          </div>
+        </div>
         <div class="paendeo-status-line status-green" id="paendeo-status">
           <span>🟢</span>
           <span id="paendeo-status-text">Plenty of room</span>
@@ -1303,6 +1317,39 @@
       </div>
     `;
     document.body.appendChild(hud);
+
+    const toggleOpt = document.getElementById("paendeo-hud-toggle-optimizer");
+    const btnOffOpt = document.getElementById("paendeo-hud-btn-off");
+    const statusLabelOpt = document.getElementById("paendeo-optimizer-status-label");
+
+    async function saveOptimizerSetting(enabled) {
+      optimizerEnabled = enabled;
+      if (toggleOpt) toggleOpt.checked = enabled;
+      if (statusLabelOpt) {
+        statusLabelOpt.textContent = enabled ? "ON" : "OFF";
+        statusLabelOpt.className = "paendeo-optimizer-status " + (enabled ? "status-on" : "status-off");
+      }
+      try {
+        chrome.storage.local.get(["settings"], (data) => {
+          const settings = { ...(data?.settings || {}), optimizerEnabled: enabled };
+          chrome.storage.local.set({ settings });
+        });
+      } catch (err) {
+        console.warn("Paendeo: failed to sync optimizer settings", err);
+      }
+    }
+
+    if (toggleOpt) {
+      toggleOpt.addEventListener("change", (e) => {
+        saveOptimizerSetting(e.target.checked);
+      });
+    }
+
+    if (btnOffOpt) {
+      btnOffOpt.addEventListener("click", () => {
+        saveOptimizerSetting(false);
+      });
+    }
 
     
     document.getElementById("paendeo-hud-collapse").addEventListener("click", () => {
@@ -1397,6 +1444,16 @@
     
     const modelEl = document.getElementById("paendeo-model-name");
     if (modelEl && detectedModel) modelEl.textContent = `· ${detectedModel}`;
+
+    const toggleOpt = document.getElementById("paendeo-hud-toggle-optimizer");
+    if (toggleOpt) {
+      toggleOpt.checked = optimizerEnabled;
+    }
+    const statusLabelOpt = document.getElementById("paendeo-optimizer-status-label");
+    if (statusLabelOpt) {
+      statusLabelOpt.textContent = optimizerEnabled ? "ON" : "OFF";
+      statusLabelOpt.className = "paendeo-optimizer-status " + (optimizerEnabled ? "status-on" : "status-off");
+    }
 
     
     triggerTokenReactions(worstPct);

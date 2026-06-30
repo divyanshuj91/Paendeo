@@ -277,6 +277,124 @@
 }
 
 /* ==========================================
+   PROMPT OPTIMIZER HUD SECTION
+   ========================================== */
+.paendeo-hud-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 4px 0;
+}
+
+.paendeo-optimizer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.paendeo-optimizer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.paendeo-optimizer-title {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.paendeo-optimizer-status {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.paendeo-optimizer-status.status-on {
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.paendeo-optimizer-status.status-off {
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.paendeo-optimizer-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Switch (Toggle Switch) */
+.paendeo-switch {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.paendeo-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.paendeo-slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.paendeo-slider::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.paendeo-switch input:checked + .paendeo-slider {
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+}
+
+.paendeo-switch input:checked + .paendeo-slider::before {
+  transform: translateX(16px);
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.4);
+}
+
+/* Off Button */
+.paendeo-off-btn {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.paendeo-off-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* ==========================================
    RESPONSIVE — smaller screens
    ========================================== */
 @media (max-width: 600px) {
@@ -286,3 +404,4 @@
     top: 8px;
   }
 }
+
