@@ -118,6 +118,7 @@
   let petEnabled = true;
   let showHUD = true;
   let optimizerEnabled = true;
+  let editBeforeSending = false;
   let isOptimizing = false;
   let skipNextInterception = false;
 
@@ -1208,15 +1209,19 @@
 
       if (response && response.success && response.optimizedPrompt) {
         replaceInputText(inputEl, response.optimizedPrompt);
-        showGreetingBubble("Prompt optimized! 🎋", 2000);
         if (pet) {
           pet.state = "eat";
           pet.tokenReactionTimer = 60;
         }
         skipNextInterception = true;
-        setTimeout(() => {
-          triggerSubmitFn();
-        }, 150);
+        if (editBeforeSending) {
+          showGreetingBubble("Prompt optimized! Edit before sending... 🎋", 3000);
+        } else {
+          showGreetingBubble("Prompt optimized! 🎋", 2000);
+          setTimeout(() => {
+            triggerSubmitFn();
+          }, 150);
+        }
       } else {
         console.warn("Prompt optimization failed:", response?.error || "Unknown error");
         showGreetingBubble("Optimization failed. Sending raw prompt...", 2000);
@@ -1612,6 +1617,7 @@
         currentSkin = data.settings.skin || "normal";
         showHUD = data.settings.showHUD !== false;
         optimizerEnabled = data.settings.optimizerEnabled !== false;
+        editBeforeSending = data.settings.editBeforeSending === true;
 
         
         pet.width = SPRITE_CONFIG.renderWidth * petScale;
@@ -1659,6 +1665,7 @@
         currentSkin = s.skin || "normal";
         showHUD = s.showHUD !== false;
         optimizerEnabled = s.optimizerEnabled !== false;
+        editBeforeSending = s.editBeforeSending === true;
 
         pet.width = SPRITE_CONFIG.renderWidth * petScale;
         pet.height = SPRITE_CONFIG.renderHeight * petScale;

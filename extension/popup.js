@@ -22,6 +22,7 @@
     skin: "normal",
     showHUD: true,
     optimizerEnabled: true,
+    editBeforeSending: false,
   };
 
   function todayISO() {
@@ -149,6 +150,7 @@
     $("val-speed").textContent = Number(settings.petSpeed).toFixed(1);
     $("select-skin").value   = settings.skin;
     $("toggle-optimizer").checked = settings.optimizerEnabled !== false;
+    $("toggle-edit-before-sending").checked = settings.editBeforeSending === true;
 
     storage.get(["apiKeys"]).then((data) => {
       const keys = data.apiKeys || {};
@@ -270,6 +272,10 @@
 
     $("toggle-optimizer")?.addEventListener("change", (e) => {
       saveSetting("optimizerEnabled", e.target.checked);
+    });
+
+    $("toggle-edit-before-sending")?.addEventListener("change", (e) => {
+      saveSetting("editBeforeSending", e.target.checked);
     });
 
     $("btn-save-keys")?.addEventListener("click", async () => {
